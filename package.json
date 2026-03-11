@@ -11,7 +11,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
     "test": "vitest",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "prospect",
@@ -40,6 +41,7 @@
     "eslint": "^8.50.0",
     "eslint-config-next": "^14.0.0",
     "husky": "^8.0.3",
+    "jsdom": "^28.1.0",
     "lint-staged": "^15.0.0",
     "postcss": "^8.4.0",
     "prettier": "^3.1.0",
