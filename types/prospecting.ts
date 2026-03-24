@@ -1,6 +1,8 @@
-export type PipelineStage = "Novo" | "Contato" | "Diagnóstico" | "Proposta";
+export type PipelineStage = "Novo" | "Contato" | "Diagnóstico" | "Proposta" | "Fechado" | "Perdido";
 export type LeadPriority = "Alta" | "Media" | "Baixa";
 export type ContactStatus = "Pendente" | "Mensagem enviada" | "Respondeu";
+export type LeadSource = "Instagram" | "LinkedIn" | "Google Maps" | "Google Meu Negócio";
+export type IcpProfile = string;
 
 export type LeadFormValues = {
   company: string;
@@ -9,6 +11,8 @@ export type LeadFormValues = {
   monthlyBudget: string;
   contact: string;
   trigger: string;
+  source?: LeadSource;
+  icp?: IcpProfile;
 };
 
 export type LeadRecord = LeadFormValues & {
@@ -20,4 +24,8 @@ export type LeadRecord = LeadFormValues & {
   message: string;
   contactStatus: ContactStatus;
   createdAt: string;
+  followUpIntervalDays?: number;
+  followUpStep?: number;
+  nextFollowUpAt?: string | null;
+  lastContactAt?: string | null;
 };

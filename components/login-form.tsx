@@ -3,6 +3,13 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 
+const LOCAL_AUTH_HINT_ENABLED =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_ENABLE_LOCAL_AUTH_HINT === "true";
+const LOCAL_AUTH_HINT_EMAIL =
+  process.env.NEXT_PUBLIC_LOCAL_AUTH_EMAIL ?? "admin@prospecthunter.local";
+const LOCAL_AUTH_HINT_PASSWORD = process.env.NEXT_PUBLIC_LOCAL_AUTH_PASSWORD ?? "prospect123";
+
 export function LoginForm(): React.ReactElement {
   const router = useRouter();
   const [email, setEmail] = React.useState("");
@@ -83,6 +90,18 @@ export function LoginForm(): React.ReactElement {
           "Entrar no sistema"
         )}
       </button>
+
+      {LOCAL_AUTH_HINT_ENABLED ? (
+        <div className="rounded-xl border border-[#d9c6b8] bg-[#f5e7dc] px-4 py-3">
+          <p className="text-xs font-semibold text-[#5a3c30]">Acesso local (dev)</p>
+          <p className="mt-1 text-xs text-[#6f5448]">
+            Email: <span className="font-medium">{LOCAL_AUTH_HINT_EMAIL}</span>
+          </p>
+          <p className="text-xs text-[#6f5448]">
+            Senha: <span className="font-medium">{LOCAL_AUTH_HINT_PASSWORD}</span>
+          </p>
+        </div>
+      ) : null}
 
       <p className="text-center text-xs text-[#a0968e] pt-2">
         Autenticação segura via Supabase Auth

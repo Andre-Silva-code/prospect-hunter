@@ -119,7 +119,9 @@ function createSupabaseStorage(): LeadStorage {
         return [];
       }
 
-      return payload.filter(isLeadRecord);
+      return payload
+        .map((item) => normalizeLeadRecord(item))
+        .filter((lead): lead is LeadRecord => lead !== null);
     },
     updateLeadRecord: async (userId, leadId, updates) => {
       const response = await fetch(
@@ -140,7 +142,7 @@ function createSupabaseStorage(): LeadStorage {
       }
 
       const [updatedLead] = payload;
-      return isLeadRecord(updatedLead) ? updatedLead : null;
+      return normalizeLeadRecord(updatedLead);
     },
   };
 }
@@ -154,7 +156,9 @@ async function listFileLeads(): Promise<LeadRecord[]> {
       return [];
     }
 
-    return parsed.filter(isLeadRecord);
+    return parsed
+      .map((item) => normalizeLeadRecord(item))
+      .filter((lead): lead is LeadRecord => lead !== null);
   } catch {
     return [];
   }
@@ -166,26 +170,69 @@ async function persistFileLeads(leads: LeadRecord[]): Promise<void> {
 }
 
 function isLeadRecord(value: unknown): value is LeadRecord {
+  return normalizeLeadRecord(value) !== null;
+}
+
+function normalizeLeadRecord(value: unknown): LeadRecord | null {
   if (!value || typeof value !== "object") {
-    return false;
+    return null;
   }
 
   const record = value as Record<string, unknown>;
 
-  return (
-    typeof record.id === "string" &&
-    typeof record.userId === "string" &&
-    typeof record.company === "string" &&
-    typeof record.niche === "string" &&
-    typeof record.region === "string" &&
-    typeof record.monthlyBudget === "string" &&
-    typeof record.contact === "string" &&
-    typeof record.trigger === "string" &&
-    typeof record.stage === "string" &&
-    typeof record.score === "number" &&
-    typeof record.priority === "string" &&
-    typeof record.message === "string" &&
-    typeof record.contactStatus === "string" &&
-    typeof record.createdAt === "string"
-  );
+  if (
+    typeof record.id !== "string" ||
+    typeof record.userId !== "string" ||
+    typeof record.company !== "string" ||
+    typeof record.niche !== "string" ||
+    typeof record.region !== "string" ||
+    typeof record.monthlyBudget !== "string" ||
+    typeof record.contact !== "string" ||
+    typeof record.trigger !== "string" ||
+    typeof record.stage !== "string" ||
+    typeof record.score !== "number" ||
+    typeof record.priority !== "string" ||
+    typeof record.message !== "string" ||
+    typeof record.contactStatus !== "string" ||
+    typeof record.createdAt !== "string"
+  ) {
+    return null;
+  }
+
+  const source =
+    typeof record.source === "string" && record.source.length > 0 ? record.source : "Instagram";
+  const icp =
+    typeof record.icp === "string" && record.icp.length > 0
+      ? record.icp
+      : "Clinicas esteticas premium";
+
+  return {
+    id: record.id,
+    userId: record.userId,
+    company: record.company,
+    niche: record.niche,
+    region: record.region,
+    monthlyBudget: record.monthlyBudget,
+    contact: record.contact,
+    trigger: record.trigger,
+    stage: record.stage as LeadRecord["stage"],
+    score: record.score,
+    priority: record.priority as LeadRecord["priority"],
+    message: record.message,
+    contactStatus: record.contactStatus as LeadRecord["contactStatus"],
+    createdAt: record.createdAt,
+    source: source as LeadRecord["source"],
+    icp: icp as LeadRecord["icp"],
+    followUpIntervalDays:
+      typeof record.followUpIntervalDays === "number" ? record.followUpIntervalDays : 2,
+    followUpStep: typeof record.followUpStep === "number" ? record.followUpStep : 0,
+    nextFollowUpAt:
+      typeof record.nextFollowUpAt === "string" || record.nextFollowUpAt === null
+        ? record.nextFollowUpAt
+        : null,
+    lastContactAt:
+      typeof record.lastContactAt === "string" || record.lastContactAt === null
+        ? record.lastContactAt
+        : null,
+  };
 }

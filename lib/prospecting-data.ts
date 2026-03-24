@@ -19,6 +19,8 @@ export type Prospect = {
   score: number;
   priority: "Alta" | "Media" | "Baixa";
   trigger: string;
+  source: "Instagram" | "LinkedIn" | "Google Maps" | "Google Meu Negócio";
+  icp: string;
 };
 
 export type OutreachStep = {
@@ -45,6 +47,48 @@ export const icpSegments: IcpSegment[] = [
     pain: "Baixo volume de casos consultivos de alto ticket.",
     offer: "Campanhas por intenção + landing page com prova social.",
     cpl: "R$ 35-70",
+  },
+  {
+    title: "Dentistas e ortodontistas",
+    pain: "Agenda com sazonalidade e baixa previsibilidade de novos pacientes.",
+    offer: "Captação por procedimento com criativos de prova social.",
+    cpl: "R$ 22-45",
+  },
+  {
+    title: "Contabilidade consultiva",
+    pain: "Dependência de indicação e pouca geração ativa B2B.",
+    offer: "Outbound com LinkedIn + landing de diagnóstico fiscal.",
+    cpl: "R$ 30-60",
+  },
+  {
+    title: "Imobiliárias e corretores",
+    pain: "Leads frios e baixa taxa de visita agendada.",
+    offer: "Funil por região e ticket com remarketing local.",
+    cpl: "R$ 18-40",
+  },
+  {
+    title: "Arquitetos e interiores",
+    pain: "Volume baixo de projetos completos e previsibilidade fraca.",
+    offer: "Posicionamento premium com captação por dor de obra/reforma.",
+    cpl: "R$ 25-55",
+  },
+  {
+    title: "Clínicas veterinárias",
+    pain: "Demanda concentrada em urgência e pouco fluxo programado.",
+    offer: "Campanhas por serviço recorrente e pacote preventivo.",
+    cpl: "R$ 14-30",
+  },
+  {
+    title: "Escolas de idiomas",
+    pain: "Muita consulta e pouca matrícula efetiva.",
+    offer: "Cadência de follow-up com ofertas por turma e horário.",
+    cpl: "R$ 10-24",
+  },
+  {
+    title: "Consultorias B2B especializadas",
+    pain: "Ciclo comercial longo sem pipeline ativo.",
+    offer: "Prospecção no LinkedIn com abordagem por problema de negócio.",
+    cpl: "R$ 40-90",
   },
 ];
 
@@ -75,6 +119,8 @@ export const prospects: Prospect[] = [
     score: 92,
     priority: "Alta",
     trigger: "Rodando criativos antigos ha 90 dias.",
+    source: "Instagram",
+    icp: "Clinicas esteticas premium",
   },
   {
     company: "Instituto Shape+",
@@ -84,6 +130,8 @@ export const prospects: Prospect[] = [
     score: 84,
     priority: "Alta",
     trigger: "Bio com link de agendamento e captação fraca.",
+    source: "Google Maps",
+    icp: "Clinicas esteticas premium",
   },
   {
     company: "Melo Advogados Previdenciario",
@@ -93,6 +141,8 @@ export const prospects: Prospect[] = [
     score: 71,
     priority: "Media",
     trigger: "Publica casos reais, mas sem CTA comercial.",
+    source: "LinkedIn",
+    icp: "Escritorios de advocacia nichados",
   },
   {
     company: "Studio Vitta Pilates",
@@ -102,6 +152,8 @@ export const prospects: Prospect[] = [
     score: 56,
     priority: "Baixa",
     trigger: "Bom orgânico, pouca maturidade para escala paga.",
+    source: "Google Meu Negócio",
+    icp: "Infoprodutores locais",
   },
 ];
 

@@ -1,10 +1,15 @@
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "prospect_hunter_session";
+const LOCAL_AUTH_EMAIL = process.env.LOCAL_AUTH_EMAIL ?? "admin@prospecthunter.local";
+const LOCAL_AUTH_PASSWORD = process.env.LOCAL_AUTH_PASSWORD ?? "prospect123";
+const LOCAL_AUTH_NAME = process.env.LOCAL_AUTH_NAME ?? "Operador Local";
 
 type StoredSession = {
-  accessToken: string;
+  provider: "supabase" | "local";
+  accessToken?: string;
   refreshToken?: string;
+  user?: SessionUser;
 };
 
 export type SessionUser = {
@@ -17,6 +22,18 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const session = await getStoredSession();
 
   if (!session) {
+    return null;
+  }
+
+  if (session.provider === "local") {
+    if (session.user) {
+      return session.user;
+    }
+
+    return null;
+  }
+
+  if (!session.accessToken) {
     return null;
   }
 
@@ -64,6 +81,26 @@ export async function createSessionFromPassword(
   email: string,
   password: string
 ): Promise<{ success: true } | { error: string }> {
+  const canUseLocalAuth =
+    process.env.NODE_ENV !== "production" || process.env.ENABLE_LOCAL_AUTH === "true";
+
+  if (
+    canUseLocalAuth &&
+    email.toLowerCase() === LOCAL_AUTH_EMAIL.toLowerCase() &&
+    password === LOCAL_AUTH_PASSWORD
+  ) {
+    await setStoredSession({
+      provider: "local",
+      user: {
+        id: "local-dev-user",
+        email: LOCAL_AUTH_EMAIL,
+        name: LOCAL_AUTH_NAME,
+      },
+    });
+
+    return { success: true };
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
@@ -71,14 +108,19 @@ export async function createSessionFromPassword(
     return { error: "Supabase Auth não configurado" };
   }
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: {
-      apikey: supabaseAnonKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseAnonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    return { error: "Serviço de autenticação indisponível" };
+  }
 
   if (!response.ok) {
     return { error: "Credenciais inválidas" };
@@ -94,6 +136,7 @@ export async function createSessionFromPassword(
   }
 
   await setStoredSession({
+    provider: "supabase",
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
   });
@@ -116,12 +159,49 @@ async function getStoredSession(): Promise<StoredSession | null> {
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      typeof (parsed as { accessToken?: unknown }).accessToken === "string"
-    ) {
-      return parsed as StoredSession;
+    if (parsed && typeof parsed === "object") {
+      const candidate = parsed as {
+        provider?: unknown;
+        accessToken?: unknown;
+        refreshToken?: unknown;
+        user?: unknown;
+      };
+
+      if (candidate.provider === "local") {
+        if (
+          candidate.user &&
+          typeof candidate.user === "object" &&
+          typeof (candidate.user as { id?: unknown }).id === "string" &&
+          typeof (candidate.user as { email?: unknown }).email === "string" &&
+          typeof (candidate.user as { name?: unknown }).name === "string"
+        ) {
+          return {
+            provider: "local",
+            user: candidate.user as SessionUser,
+          };
+        }
+
+        return null;
+      }
+
+      if (candidate.provider === "supabase" && typeof candidate.accessToken === "string") {
+        return {
+          provider: "supabase",
+          accessToken: candidate.accessToken,
+          refreshToken:
+            typeof candidate.refreshToken === "string" ? candidate.refreshToken : undefined,
+        };
+      }
+
+      // Backward compatibility with cookies saved before `provider` was introduced.
+      if (typeof candidate.accessToken === "string") {
+        return {
+          provider: "supabase",
+          accessToken: candidate.accessToken,
+          refreshToken:
+            typeof candidate.refreshToken === "string" ? candidate.refreshToken : undefined,
+        };
+      }
     }
   } catch {
     return null;
