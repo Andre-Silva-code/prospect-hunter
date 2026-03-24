@@ -306,7 +306,6 @@ export default function ProspectingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": sessionUserId,
         },
         body: JSON.stringify(leadRecord),
       });

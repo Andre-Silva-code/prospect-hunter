@@ -7,6 +7,8 @@ import type { LeadRecord } from "@/types/prospecting";
 
 function createResponse(payload: unknown) {
   return {
+    ok: true,
+    status: 200,
     json: vi.fn().mockResolvedValue(payload),
   } as unknown as Response;
 }

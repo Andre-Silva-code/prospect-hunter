@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSessionUser } from "@/lib/auth-session";
 import { searchProspects } from "@/lib/prospecting-connectors";
 import type { LeadSource } from "@/types/prospecting";
 
@@ -20,7 +21,17 @@ export async function POST(request: Request): Promise<
     | { error: string }
   >
 > {
-  const payload = (await request.json()) as SearchPayload;
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload: SearchPayload;
+  try {
+    payload = (await request.json()) as SearchPayload;
+  } catch {
+    return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+  }
 
   if (
     !payload.icp ||

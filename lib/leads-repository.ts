@@ -13,6 +13,29 @@ type LeadStorage = {
   ) => Promise<LeadRecord | null>;
 };
 
+type SupabaseLeadRow = {
+  id: string;
+  user_id: string;
+  company: string;
+  niche: string;
+  region: string;
+  monthly_budget: string;
+  contact: string;
+  trigger: string;
+  stage: string;
+  score: number;
+  priority: string;
+  message: string;
+  contact_status: string;
+  created_at: string;
+  source?: string | null;
+  icp?: string | null;
+  follow_up_interval_days?: number | null;
+  follow_up_step?: number | null;
+  next_follow_up_at?: string | null;
+  last_contact_at?: string | null;
+};
+
 const dataDirectory = path.join(process.cwd(), "data");
 const leadsFilePath = path.join(dataDirectory, "leads.json");
 
@@ -46,11 +69,12 @@ function canUseSupabaseStorage(): boolean {
 
 function createFileStorage(): LeadStorage {
   return {
-    createLead: async (_userId, lead) => {
+    createLead: async (userId, lead) => {
       const leads = await listFileLeads();
-      const nextLeads = [lead, ...leads];
+      const nextLead = { ...lead, userId };
+      const nextLeads = [nextLead, ...leads];
       await persistFileLeads(nextLeads);
-      return lead;
+      return nextLead;
     },
     listLeads: async (userId) => {
       const leads = await listFileLeads();
@@ -93,21 +117,36 @@ function createSupabaseStorage(): LeadStorage {
   };
 
   return {
-    createLead: async (_userId, lead) => {
-      await fetch(`${supabaseUrl}/rest/v1/leads`, {
+    createLead: async (userId, lead) => {
+      const nextLead = { ...lead, userId };
+      const response = await fetch(`${supabaseUrl}/rest/v1/leads`, {
         method: "POST",
         headers: {
           ...baseHeaders,
           Prefer: "return=representation",
         },
-        body: JSON.stringify(lead),
+        body: JSON.stringify(toSupabaseLeadRow(nextLead)),
       });
 
-      return lead;
+      if (!response.ok) {
+        throw new Error(`supabase insert failed with status ${response.status}`);
+      }
+
+      const payload = (await response.json()) as unknown;
+      if (!Array.isArray(payload) || payload.length === 0) {
+        throw new Error("supabase insert returned empty payload");
+      }
+
+      const createdLead = normalizeLeadRecord(payload[0]);
+      if (!createdLead) {
+        throw new Error("supabase insert returned invalid lead payload");
+      }
+
+      return createdLead;
     },
     listLeads: async (userId) => {
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/leads?select=*&userId=eq.${encodeURIComponent(userId)}`,
+        `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at&user_id=eq.${encodeURIComponent(userId)}`,
         {
           headers: baseHeaders,
           cache: "no-store",
@@ -124,17 +163,23 @@ function createSupabaseStorage(): LeadStorage {
         .filter((lead): lead is LeadRecord => lead !== null);
     },
     updateLeadRecord: async (userId, leadId, updates) => {
+      const updatePayload = toSupabaseLeadPatch(updates);
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/leads?id=eq.${leadId}&userId=eq.${encodeURIComponent(userId)}`,
+        `${supabaseUrl}/rest/v1/leads?id=eq.${encodeURIComponent(leadId)}&user_id=eq.${encodeURIComponent(userId)}`,
         {
           method: "PATCH",
           headers: {
             ...baseHeaders,
             Prefer: "return=representation",
           },
-          body: JSON.stringify(updates),
+          body: JSON.stringify(updatePayload),
         }
       );
+
+      if (!response.ok) {
+        return null;
+      }
+
       const payload = (await response.json()) as unknown;
 
       if (!Array.isArray(payload) || payload.length === 0) {
@@ -145,6 +190,62 @@ function createSupabaseStorage(): LeadStorage {
       return normalizeLeadRecord(updatedLead);
     },
   };
+}
+
+function toSupabaseLeadRow(lead: LeadRecord): SupabaseLeadRow {
+  return {
+    id: lead.id,
+    user_id: lead.userId,
+    company: lead.company,
+    niche: lead.niche,
+    region: lead.region,
+    monthly_budget: lead.monthlyBudget,
+    contact: lead.contact,
+    trigger: lead.trigger,
+    stage: lead.stage,
+    score: lead.score,
+    priority: lead.priority,
+    message: lead.message,
+    contact_status: lead.contactStatus,
+    created_at: lead.createdAt,
+    source: lead.source ?? null,
+    icp: lead.icp ?? null,
+    follow_up_interval_days: lead.followUpIntervalDays ?? null,
+    follow_up_step: lead.followUpStep ?? null,
+    next_follow_up_at: lead.nextFollowUpAt ?? null,
+    last_contact_at: lead.lastContactAt ?? null,
+  };
+}
+
+function toSupabaseLeadPatch(updates: Partial<LeadRecord>): Partial<SupabaseLeadRow> {
+  const patch: Partial<SupabaseLeadRow> = {};
+
+  if (typeof updates.company === "string") patch.company = updates.company;
+  if (typeof updates.niche === "string") patch.niche = updates.niche;
+  if (typeof updates.region === "string") patch.region = updates.region;
+  if (typeof updates.monthlyBudget === "string") patch.monthly_budget = updates.monthlyBudget;
+  if (typeof updates.contact === "string") patch.contact = updates.contact;
+  if (typeof updates.trigger === "string") patch.trigger = updates.trigger;
+  if (typeof updates.stage === "string") patch.stage = updates.stage;
+  if (typeof updates.score === "number") patch.score = updates.score;
+  if (typeof updates.priority === "string") patch.priority = updates.priority;
+  if (typeof updates.message === "string") patch.message = updates.message;
+  if (typeof updates.contactStatus === "string") patch.contact_status = updates.contactStatus;
+  if (typeof updates.createdAt === "string") patch.created_at = updates.createdAt;
+  if (typeof updates.source === "string") patch.source = updates.source;
+  if (typeof updates.icp === "string") patch.icp = updates.icp;
+  if (typeof updates.followUpIntervalDays === "number") {
+    patch.follow_up_interval_days = updates.followUpIntervalDays;
+  }
+  if (typeof updates.followUpStep === "number") patch.follow_up_step = updates.followUpStep;
+  if (typeof updates.nextFollowUpAt === "string" || updates.nextFollowUpAt === null) {
+    patch.next_follow_up_at = updates.nextFollowUpAt;
+  }
+  if (typeof updates.lastContactAt === "string" || updates.lastContactAt === null) {
+    patch.last_contact_at = updates.lastContactAt;
+  }
+
+  return patch;
 }
 
 async function listFileLeads(): Promise<LeadRecord[]> {
@@ -180,59 +281,96 @@ function normalizeLeadRecord(value: unknown): LeadRecord | null {
 
   const record = value as Record<string, unknown>;
 
+  const id = getString(record, "id");
+  const userId = getString(record, "userId", "user_id");
+  const company = getString(record, "company");
+  const niche = getString(record, "niche");
+  const region = getString(record, "region");
+  const monthlyBudget = getString(record, "monthlyBudget", "monthly_budget");
+  const contact = getString(record, "contact");
+  const trigger = getString(record, "trigger");
+  const stage = getString(record, "stage");
+  const score = getNumber(record, "score");
+  const priority = getString(record, "priority");
+  const message = getString(record, "message");
+  const contactStatus = getString(record, "contactStatus", "contact_status");
+  const createdAt = getString(record, "createdAt", "created_at");
+
   if (
-    typeof record.id !== "string" ||
-    typeof record.userId !== "string" ||
-    typeof record.company !== "string" ||
-    typeof record.niche !== "string" ||
-    typeof record.region !== "string" ||
-    typeof record.monthlyBudget !== "string" ||
-    typeof record.contact !== "string" ||
-    typeof record.trigger !== "string" ||
-    typeof record.stage !== "string" ||
-    typeof record.score !== "number" ||
-    typeof record.priority !== "string" ||
-    typeof record.message !== "string" ||
-    typeof record.contactStatus !== "string" ||
-    typeof record.createdAt !== "string"
+    !id ||
+    !userId ||
+    !company ||
+    !niche ||
+    !region ||
+    !monthlyBudget ||
+    !contact ||
+    !trigger ||
+    !stage ||
+    score === null ||
+    !priority ||
+    !message ||
+    !contactStatus ||
+    !createdAt
   ) {
     return null;
   }
 
-  const source =
-    typeof record.source === "string" && record.source.length > 0 ? record.source : "Instagram";
-  const icp =
-    typeof record.icp === "string" && record.icp.length > 0
-      ? record.icp
-      : "Clinicas esteticas premium";
+  const source = getString(record, "source") ?? "Instagram";
+  const icp = getString(record, "icp") ?? "Clinicas esteticas premium";
 
   return {
-    id: record.id,
-    userId: record.userId,
-    company: record.company,
-    niche: record.niche,
-    region: record.region,
-    monthlyBudget: record.monthlyBudget,
-    contact: record.contact,
-    trigger: record.trigger,
-    stage: record.stage as LeadRecord["stage"],
-    score: record.score,
-    priority: record.priority as LeadRecord["priority"],
-    message: record.message,
-    contactStatus: record.contactStatus as LeadRecord["contactStatus"],
-    createdAt: record.createdAt,
+    id,
+    userId,
+    company,
+    niche,
+    region,
+    monthlyBudget,
+    contact,
+    trigger,
+    stage: stage as LeadRecord["stage"],
+    score,
+    priority: priority as LeadRecord["priority"],
+    message,
+    contactStatus: contactStatus as LeadRecord["contactStatus"],
+    createdAt,
     source: source as LeadRecord["source"],
     icp: icp as LeadRecord["icp"],
-    followUpIntervalDays:
-      typeof record.followUpIntervalDays === "number" ? record.followUpIntervalDays : 2,
-    followUpStep: typeof record.followUpStep === "number" ? record.followUpStep : 0,
-    nextFollowUpAt:
-      typeof record.nextFollowUpAt === "string" || record.nextFollowUpAt === null
-        ? record.nextFollowUpAt
-        : null,
-    lastContactAt:
-      typeof record.lastContactAt === "string" || record.lastContactAt === null
-        ? record.lastContactAt
-        : null,
+    followUpIntervalDays: getNumber(record, "followUpIntervalDays", "follow_up_interval_days") ?? 2,
+    followUpStep: getNumber(record, "followUpStep", "follow_up_step") ?? 0,
+    nextFollowUpAt: getNullableString(record, "nextFollowUpAt", "next_follow_up_at"),
+    lastContactAt: getNullableString(record, "lastContactAt", "last_contact_at"),
   };
+}
+
+function getString(record: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getNullableString(record: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" || value === null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getNumber(record: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return null;
 }

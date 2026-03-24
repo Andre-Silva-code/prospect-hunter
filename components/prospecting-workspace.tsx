@@ -525,7 +525,7 @@ export function ProspectingWorkspace({
   const userName = sessionUser.name;
 
   React.useEffect(() => {
-    void loadLeads(sessionUser.id);
+    void loadLeads();
   }, [sessionUser.id]);
 
   const filteredLeads = React.useMemo(() => {
@@ -549,15 +549,23 @@ export function ProspectingWorkspace({
   const metrics = buildOperationalMetrics(leads);
   const followUpQueue = buildFollowUpQueue(filteredLeads);
 
-  async function loadLeads(nextUserId: string): Promise<void> {
-    const response = await fetch("/api/leads", {
-      headers: {
-        "x-user-id": nextUserId,
-      },
-    });
-    const nextLeads = (await response.json()) as LeadRecord[];
-    setLeads(nextLeads);
-    setIsLoading(false);
+  async function loadLeads(): Promise<void> {
+    try {
+      const response = await fetch("/api/leads");
+      const payload = (await response.json()) as unknown;
+
+      if (!response.ok || !Array.isArray(payload)) {
+        setLeads([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setLeads(payload as LeadRecord[]);
+      setIsLoading(false);
+    } catch {
+      setLeads([]);
+      setIsLoading(false);
+    }
   }
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -587,7 +595,6 @@ export function ProspectingWorkspace({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-user-id": userId,
       },
       body: JSON.stringify(nextLead),
     });
@@ -655,7 +662,6 @@ export function ProspectingWorkspace({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify(lead),
       });
@@ -706,7 +712,6 @@ export function ProspectingWorkspace({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify(nextLeadSnapshot),
       });

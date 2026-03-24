@@ -5,7 +5,13 @@ import { createSessionFromPassword } from "@/lib/auth-session";
 export async function POST(
   request: Request
 ): Promise<NextResponse<{ success: true } | { error: string }>> {
-  const body = (await request.json()) as { email?: string; password?: string };
+  let body: { email?: string; password?: string };
+  try {
+    body = (await request.json()) as { email?: string; password?: string };
+  } catch {
+    return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+  }
+
   const email = body.email?.trim();
   const password = body.password?.trim();
 
