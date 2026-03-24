@@ -46,6 +46,12 @@ type ApifyRunResponse = {
   };
 };
 
+type ConnectorErrorResult = {
+  results: ProspectSearchResult[];
+  status: string;
+  retryable?: boolean;
+};
+
 export async function searchProspects(
   request: ProspectSearchRequest
 ): Promise<ProspectSearchResponse> {
@@ -486,37 +492,105 @@ async function runApify(
   actorId: string | undefined,
   token: string,
   input: Record<string, unknown>
-): Promise<unknown[] | { results: ProspectSearchResult[]; status: string }> {
+): Promise<unknown[] | ConnectorErrorResult> {
   const baseUrl = process.env.APIFY_API_BASE_URL ?? "https://api.apify.com";
-  const runEndpoint = taskId
-    ? `${baseUrl}/v2/actor-tasks/${encodeURIComponent(taskId)}/runs?token=${encodeURIComponent(token)}&waitForFinish=120`
-    : `${baseUrl}/v2/acts/${encodeURIComponent(actorId!)}/runs?token=${encodeURIComponent(token)}&waitForFinish=120`;
+  const waitForFinishSeconds = parseIntegerEnv("APIFY_RUN_WAIT_SECONDS", 120);
+  const maxRetries = Math.max(1, parseIntegerEnv("APIFY_MAX_RETRIES", 3));
+  const backoffSequence = parseBackoffSequence(
+    process.env.APIFY_BACKOFF_MS,
+    maxRetries,
+    [2000, 4000, 8000]
+  );
+  const timeoutMs = Math.max(1000, parseIntegerEnv("APIFY_REQUEST_TIMEOUT_MS", 30000));
 
+  const runEndpoint = taskId
+    ? `${baseUrl}/v2/actor-tasks/${encodeURIComponent(taskId)}/runs?token=${encodeURIComponent(token)}&waitForFinish=${waitForFinishSeconds}`
+    : `${baseUrl}/v2/acts/${encodeURIComponent(actorId!)}/runs?token=${encodeURIComponent(token)}&waitForFinish=${waitForFinishSeconds}`;
+
+  let lastFailure: ConnectorErrorResult | null = null;
+  let attemptsUsed = 0;
+
+  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+    attemptsUsed = attempt + 1;
+    const outcome = await runApifyOnce(runEndpoint, baseUrl, token, input, timeoutMs);
+    if (Array.isArray(outcome)) {
+      return outcome;
+    }
+
+    lastFailure = outcome;
+
+    if (!outcome.retryable || attempt >= maxRetries - 1) {
+      break;
+    }
+
+    const delayMs = backoffSequence[Math.min(attempt, backoffSequence.length - 1)] ?? 1000;
+    await sleep(delayMs);
+  }
+
+  if (!lastFailure) {
+    return { results: [], status: "Falha ao executar Apify" };
+  }
+
+  const attemptsLabel = attemptsUsed > 1 ? ` após ${attemptsUsed} tentativas` : "";
+  return {
+    results: [],
+    status: `${lastFailure.status}${attemptsLabel}`,
+  };
+}
+
+async function runApifyOnce(
+  runEndpoint: string,
+  baseUrl: string,
+  token: string,
+  input: Record<string, unknown>,
+  timeoutMs: number
+): Promise<unknown[] | ConnectorErrorResult> {
   try {
-    const runResponse = await fetch(runEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const runResponse = await fetchWithTimeout(
+      runEndpoint,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+        cache: "no-store",
       },
-      body: JSON.stringify(input),
-      cache: "no-store",
-    });
+      timeoutMs
+    );
 
     if (!runResponse.ok) {
-      return { results: [], status: `Apify indisponivel (${runResponse.status})` };
+      return {
+        results: [],
+        status: `Apify indisponivel (${runResponse.status})`,
+        retryable: runResponse.status === 429 || runResponse.status >= 500,
+      };
     }
 
     const runPayload = (await runResponse.json()) as ApifyRunResponse;
+    const runStatus = runPayload.data?.status ?? "UNKNOWN";
+    if (runStatus !== "SUCCEEDED") {
+      return {
+        results: [],
+        status: `Apify run terminou com status ${runStatus}`,
+        retryable: runStatus === "TIMED-OUT",
+      };
+    }
+
     const datasetId = runPayload.data?.defaultDatasetId;
     if (!datasetId) {
       return { results: [], status: "Apify sem dataset de saida" };
     }
 
     const datasetUrl = `${baseUrl}/v2/datasets/${encodeURIComponent(datasetId)}/items?token=${encodeURIComponent(token)}&clean=true&format=json`;
-    const datasetResponse = await fetch(datasetUrl, { cache: "no-store" });
+    const datasetResponse = await fetchWithTimeout(datasetUrl, { cache: "no-store" }, timeoutMs);
 
     if (!datasetResponse.ok) {
-      return { results: [], status: `Falha ao ler dataset Apify (${datasetResponse.status})` };
+      return {
+        results: [],
+        status: `Falha ao ler dataset Apify (${datasetResponse.status})`,
+        retryable: datasetResponse.status === 429 || datasetResponse.status >= 500,
+      };
     }
 
     const datasetPayload = (await datasetResponse.json()) as unknown;
@@ -525,9 +599,73 @@ async function runApify(
     }
 
     return datasetPayload;
-  } catch {
-    return { results: [], status: "Falha ao executar Apify" };
+  } catch (error) {
+    if (isAbortError(error)) {
+      return { results: [], status: "Apify timeout", retryable: true };
+    }
+
+    return { results: [], status: "Falha ao executar Apify", retryable: true };
   }
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  return (error as { name?: string }).name === "AbortError";
+}
+
+function parseIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function parseBackoffSequence(raw: string | undefined, size: number, fallback: number[]): number[] {
+  if (!raw) {
+    return fallback.slice(0, Math.max(1, size));
+  }
+
+  const parsed = raw
+    .split(",")
+    .map((chunk) => Number(chunk.trim()))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .map((value) => Math.trunc(value));
+
+  if (parsed.length === 0) {
+    return fallback.slice(0, Math.max(1, size));
+  }
+
+  return parsed;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function pickFirstString(record: Record<string, unknown>, keys: string[]): string | null {
