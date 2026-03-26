@@ -21,6 +21,7 @@ const GEMINI_BASE_URL =
   process.env.GEMINI_API_BASE_URL ?? "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_TIMEOUT_MS = parseIntegerEnv("GEMINI_TIMEOUT_MS", 30000);
 const GEMINI_CACHE_TTL_MS = parseIntegerEnv("GEMINI_CACHE_TTL_MS", 15 * 60 * 1000);
+const GEMINI_CACHE_MAX_ENTRIES = parseIntegerEnv("GEMINI_CACHE_MAX_ENTRIES", 500);
 const GEMINI_MAX_RETRIES = parseIntegerEnv("GEMINI_MAX_RETRIES", 2);
 const GEMINI_BACKOFF_MS = parseBackoffMs(
   process.env.GEMINI_BACKOFF_MS,
@@ -37,6 +38,8 @@ export function __resetGeminiMessageCacheForTests(): void {
 export async function generateGeminiOutreachMessage(
   input: GenerateGeminiMessageInput
 ): Promise<GenerateGeminiMessageResult> {
+  pruneCache();
+
   const apiKey = process.env.GEMINI_API_KEY;
   const fallbackMessage = generateFallbackMessage(input);
   const cacheKey = buildCacheKey(input);
@@ -108,6 +111,7 @@ export async function generateGeminiOutreachMessage(
         message: validated,
         expiresAt: Date.now() + GEMINI_CACHE_TTL_MS,
       });
+      pruneCache();
 
       return { message: validated, provider: "gemini" };
     } catch {
@@ -245,4 +249,20 @@ function isRetryableStatus(status: number): boolean {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pruneCache(): void {
+  const now = Date.now();
+
+  for (const [key, entry] of messageCache.entries()) {
+    if (entry.expiresAt <= now) {
+      messageCache.delete(key);
+    }
+  }
+
+  while (messageCache.size > GEMINI_CACHE_MAX_ENTRIES) {
+    const oldestKey = messageCache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    messageCache.delete(oldestKey);
+  }
 }
