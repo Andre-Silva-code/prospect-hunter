@@ -300,7 +300,33 @@ export default function ProspectingPage() {
         lastContactAt: null,
       };
 
-      leadRecord.message = generateOutreachMessage(leadRecord);
+      try {
+        const messageResponse = await fetch("/api/gemini/generate-message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            company: leadRecord.company,
+            niche: leadRecord.niche,
+            region: leadRecord.region,
+            trigger: leadRecord.trigger,
+            priority: leadRecord.priority,
+          }),
+        });
+
+        if (messageResponse.ok) {
+          const payload = (await messageResponse.json()) as { message?: string };
+          leadRecord.message =
+            typeof payload.message === "string" && payload.message.trim().length > 0
+              ? payload.message
+              : generateOutreachMessage(leadRecord);
+        } else {
+          leadRecord.message = generateOutreachMessage(leadRecord);
+        }
+      } catch {
+        leadRecord.message = generateOutreachMessage(leadRecord);
+      }
 
       const response = await fetch("/api/leads", {
         method: "POST",
