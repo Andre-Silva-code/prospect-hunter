@@ -174,7 +174,10 @@ async function searchApifyConnector(
   const sourceLabel = taskId ? "task" : "actor";
   return {
     results,
-    status: `${results.length} lead(s) via Apify ${sourceLabel}`,
+    status:
+      results.length > 0
+        ? `${results.length} lead(s) via Apify ${sourceLabel}`
+        : `0 lead(s) via Apify ${sourceLabel} (verifique input/filtros da task)`,
   };
 }
 
@@ -183,12 +186,21 @@ async function searchGooglePlaces(
   request: ProspectSearchRequest
 ): Promise<{ results: ProspectSearchResult[]; status: string }> {
   const apifyResult = await searchApifyGoogleConnector(source, request);
-  if (apifyResult.status !== "Sem conector configurado") {
+  if (
+    apifyResult.status !== "Sem conector configurado" &&
+    !shouldFallbackToGooglePlaces(apifyResult.status, apifyResult.results.length)
+  ) {
     return apifyResult;
   }
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
+    if (apifyResult.status !== "Sem conector configurado") {
+      return {
+        results: apifyResult.results,
+        status: `${apifyResult.status} | fallback Google Places indisponivel (GOOGLE_MAPS_API_KEY nao configurada)`,
+      };
+    }
     return { results: [], status: "GOOGLE_MAPS_API_KEY nao configurada" };
   }
 
@@ -223,9 +235,14 @@ async function searchGooglePlaces(
       .map((place, index) => normalizeGooglePlace(place, source, request, index))
       .filter((item): item is ProspectSearchResult => item !== null);
 
+    const fallbackPrefix =
+      apifyResult.status !== "Sem conector configurado"
+        ? `${apifyResult.status} | fallback Google Places: `
+        : "";
+
     return {
       results,
-      status: `${results.length} lead(s) encontrado(s)`,
+      status: `${fallbackPrefix}${results.length} lead(s) encontrado(s)`,
     };
   } catch {
     return { results: [], status: "Falha ao consultar Google Places" };
@@ -267,7 +284,10 @@ async function searchApifyGoogleConnector(
   const sourceLabel = taskId ? "task" : "actor";
   return {
     results,
-    status: `${results.length} lead(s) via Apify ${sourceLabel}`,
+    status:
+      results.length > 0
+        ? `${results.length} lead(s) via Apify ${sourceLabel}`
+        : `0 lead(s) via Apify ${sourceLabel} (verifique input/filtros da task)`,
   };
 }
 
@@ -461,9 +481,13 @@ function buildApifyInput(
   if (source === "Instagram") {
     return {
       search: baseSearch,
+      searchQuery: baseSearch,
+      query: baseSearch,
+      searchStringsArray: [baseSearch],
       searchType: "user",
       maxItems: request.limitPerSource,
       resultsLimit: request.limitPerSource,
+      limit: request.limitPerSource,
       includeRelatedProfiles: false,
     };
   }
@@ -480,11 +504,37 @@ function buildApifyInput(
   }
 
   return {
+    search: baseSearch,
+    searchQuery: baseSearch,
     keywords: [baseSearch],
     query: baseSearch,
     limit: request.limitPerSource,
     maxItems: request.limitPerSource,
   };
+}
+
+function shouldFallbackToGooglePlaces(status: string, resultsCount: number): boolean {
+  if (resultsCount > 0) {
+    return false;
+  }
+
+  if (status.includes("Apify indisponivel (402)")) {
+    return true;
+  }
+
+  if (status.includes("Apify indisponivel (429)")) {
+    return true;
+  }
+
+  if (status.includes("timeout")) {
+    return true;
+  }
+
+  if (status.startsWith("0 lead(s) via Apify")) {
+    return true;
+  }
+
+  return false;
 }
 
 async function runApify(
