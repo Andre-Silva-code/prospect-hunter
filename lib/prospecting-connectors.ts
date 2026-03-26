@@ -368,7 +368,7 @@ function normalizeApifyItem(
   }
 
   const item = value as Record<string, unknown>;
-  const company =
+  const companyCandidate =
     pickFirstString(item, [
       "companyName",
       "businessName",
@@ -382,14 +382,18 @@ function normalizeApifyItem(
       "ownerUsername",
     ]) ?? "";
 
+  const company =
+    companyCandidate ||
+    buildNameFromParts(pickFirstString(item, ["firstName"]), pickFirstString(item, ["lastName"])) ||
+    pickFirstString(item, ["publicIdentifier"]) ||
+    "";
+
   if (!company) {
     return null;
   }
 
   const niche = pickFirstString(item, ["industry", "category", "niche"]) ?? request.niche;
-  const region =
-    pickFirstString(item, ["city", "locationName", "location", "address", "formattedAddress"]) ??
-    request.region;
+  const region = extractRegionFromApifyItem(item, request.region);
   const contact =
     pickFirstString(item, [
       "email",
@@ -834,6 +838,40 @@ function pickFirstNumber(record: Record<string, unknown>, keys: string[]): numbe
   }
 
   return undefined;
+}
+
+function buildNameFromParts(firstName: string | null, lastName: string | null): string | null {
+  const value = [firstName ?? "", lastName ?? ""].join(" ").trim();
+  return value.length > 0 ? value : null;
+}
+
+function extractRegionFromApifyItem(item: Record<string, unknown>, fallback: string): string {
+  const locationField = item.location;
+  if (locationField && typeof locationField === "object") {
+    const locationRecord = locationField as Record<string, unknown>;
+    const parsed = locationRecord.parsed;
+    if (parsed && typeof parsed === "object") {
+      const parsedRecord = parsed as Record<string, unknown>;
+      const city = typeof parsedRecord.city === "string" ? parsedRecord.city : "";
+      const state = typeof parsedRecord.state === "string" ? parsedRecord.state : "";
+      const composed = [city, state].filter(Boolean).join(", ").trim();
+      if (composed.length > 0) {
+        return composed;
+      }
+    }
+
+    if (
+      typeof locationRecord.linkedinText === "string" &&
+      locationRecord.linkedinText.trim().length > 0
+    ) {
+      return locationRecord.linkedinText.trim();
+    }
+  }
+
+  return (
+    pickFirstString(item, ["city", "locationName", "location", "address", "formattedAddress"]) ??
+    fallback
+  );
 }
 
 function extractApifyDatasetError(datasetPayload: unknown[]): string | null {
