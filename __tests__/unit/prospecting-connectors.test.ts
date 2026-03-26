@@ -136,4 +136,57 @@ describe("prospecting connectors (Apify)", () => {
     expect(response.connectorStatus["Google Maps"]).toBe("Apify indisponivel (400)");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("falls back to Google Places when Apify returns zero results", async () => {
+    process.env.PROSPECT_APIFY_GOOGLE_MAPS_TASK_ID = "task-gmaps";
+    process.env.GOOGLE_MAPS_API_KEY = "google-api-key";
+
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      createResponse(true, 200, {
+        data: {
+          status: "SUCCEEDED",
+          defaultDatasetId: "dataset-gmaps",
+        },
+      })
+    );
+    fetchMock.mockResolvedValueOnce(createResponse(true, 200, []));
+    fetchMock.mockResolvedValueOnce(
+      createResponse(true, 200, {
+        places: [
+          {
+            displayName: { text: "Clinica Aurora" },
+            googleMapsUri: "https://maps.google.com/?cid=123",
+            formattedAddress: "Sao Paulo, SP",
+            rating: 4.8,
+            userRatingCount: 256,
+            websiteUri: "https://clinicaaurora.com.br",
+            nationalPhoneNumber: "+55 11 99999-0000",
+          },
+        ],
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await searchProspects({
+      icp: "Clinicas esteticas premium",
+      niche: "Estetica premium",
+      region: "Sao Paulo",
+      sources: ["Google Maps"],
+      limitPerSource: 5,
+    });
+
+    expect(response.results).toHaveLength(1);
+    expect(response.results[0]).toMatchObject({
+      company: "Clinica Aurora",
+      source: "Google Maps",
+    });
+    expect(response.connectorStatus["Google Maps"]).toContain(
+      "0 lead(s) via Apify task (verifique input/filtros da task) | fallback Google Places: 1 lead(s) encontrado(s)"
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[2]?.[0])).toBe(
+      "https://places.googleapis.com/v1/places:searchText"
+    );
+  });
 });

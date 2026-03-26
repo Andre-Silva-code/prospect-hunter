@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as loginPost } from "@/app/api/auth/login/route";
+import { POST as generateMessagePost } from "@/app/api/gemini/generate-message/route";
 import { PATCH as patchLead } from "@/app/api/leads/[leadId]/route";
 import { GET as getLeads, POST as postLeads } from "@/app/api/leads/route";
 import { POST as searchPost } from "@/app/api/prospecting/search/route";
 import { getSessionUser } from "@/lib/auth-session";
+import { generateGeminiOutreachMessage } from "@/lib/gemini-client";
 import { createLead, listLeads, updateLeadRecord } from "@/lib/leads-repository";
 import { searchProspects } from "@/lib/prospecting-connectors";
 import type { LeadRecord } from "@/types/prospecting";
@@ -22,6 +24,10 @@ vi.mock("@/lib/leads-repository", () => ({
 
 vi.mock("@/lib/prospecting-connectors", () => ({
   searchProspects: vi.fn(),
+}));
+
+vi.mock("@/lib/gemini-client", () => ({
+  generateGeminiOutreachMessage: vi.fn(),
 }));
 
 function buildLead(overrides: Partial<LeadRecord> = {}): LeadRecord {
@@ -189,5 +195,98 @@ describe("login route validation", () => {
 
     expect(response.status).toBe(400);
     expect(payload.error).toBe("Payload inválido");
+  });
+});
+
+describe("gemini route validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects message generation when session is missing", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(null);
+
+    const request = new Request("http://localhost/api/gemini/generate-message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        company: "Clinica Aurora",
+        niche: "Estetica",
+        region: "Sao Paulo",
+        trigger: "Anuncios ativos",
+        priority: "Alta",
+      }),
+    });
+
+    const response = await generateMessagePost(request);
+    expect(response.status).toBe(401);
+    expect(generateGeminiOutreachMessage).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when gemini payload is invalid", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({
+      id: "session-user",
+      name: "Operador",
+      email: "op@example.com",
+    });
+
+    const request = new Request("http://localhost/api/gemini/generate-message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        company: "Clinica Aurora",
+      }),
+    });
+
+    const response = await generateMessagePost(request);
+    const payload = (await response.json()) as { error: string };
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe("Parametros invalidos");
+    expect(generateGeminiOutreachMessage).not.toHaveBeenCalled();
+  });
+
+  it("returns generated message when payload is valid", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({
+      id: "session-user",
+      name: "Operador",
+      email: "op@example.com",
+    });
+    vi.mocked(generateGeminiOutreachMessage).mockResolvedValue({
+      message: "Mensagem de abordagem validada.",
+      provider: "gemini",
+      cached: false,
+    });
+
+    const request = new Request("http://localhost/api/gemini/generate-message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        company: "Clinica Aurora",
+        niche: "Estetica",
+        region: "Sao Paulo",
+        trigger: "Anuncios ativos",
+        priority: "Alta",
+      }),
+    });
+
+    const response = await generateMessagePost(request);
+    const payload = (await response.json()) as { message: string; provider: string };
+
+    expect(response.status).toBe(200);
+    expect(payload.message).toBe("Mensagem de abordagem validada.");
+    expect(payload.provider).toBe("gemini");
+    expect(generateGeminiOutreachMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "session-user",
+        company: "Clinica Aurora",
+        priority: "Alta",
+      })
+    );
   });
 });
