@@ -183,6 +183,14 @@ async function searchApifyConnector(
     return datasetPayload;
   }
 
+  const datasetError = extractApifyDatasetError(datasetPayload);
+  if (datasetError) {
+    return {
+      results: [],
+      status: `Apify dataset erro: ${datasetError}`,
+    };
+  }
+
   const results = datasetPayload
     .map((item, index) => normalizeApifyItem(item, source, request, index))
     .filter((item): item is ProspectSearchResult => item !== null)
@@ -293,6 +301,14 @@ async function searchApifyGoogleConnector(
     return datasetPayload;
   }
 
+  const datasetError = extractApifyDatasetError(datasetPayload);
+  if (datasetError) {
+    return {
+      results: [],
+      status: `Apify dataset erro: ${datasetError}`,
+    };
+  }
+
   const results = datasetPayload
     .map((item, index) => normalizeApifyItem(item, source, request, index))
     .filter((item): item is ProspectSearchResult => item !== null)
@@ -362,6 +378,8 @@ function normalizeApifyItem(
       "handle",
       "pageName",
       "fullName",
+      "ownerFullName",
+      "ownerUsername",
     ]) ?? "";
 
   if (!company) {
@@ -373,10 +391,17 @@ function normalizeApifyItem(
     pickFirstString(item, ["city", "locationName", "location", "address", "formattedAddress"]) ??
     request.region;
   const contact =
-    pickFirstString(item, ["email", "phone", "website", "websiteUrl", "url", "profileUrl"]) ??
-    "Sem contato publico";
+    pickFirstString(item, [
+      "email",
+      "phone",
+      "website",
+      "websiteUrl",
+      "url",
+      "profileUrl",
+      "ownerUsername",
+    ]) ?? "Sem contato publico";
   const trigger =
-    pickFirstString(item, ["bio", "description", "about", "headline"]) ??
+    pickFirstString(item, ["bio", "description", "about", "headline", "caption"]) ??
     `Lead encontrado via ${source} no Apify.`;
   const sourceUrl = pickFirstString(item, [
     "url",
@@ -384,6 +409,7 @@ function normalizeApifyItem(
     "linkedinUrl",
     "instagramUrl",
     "googleMapsUrl",
+    "inputUrl",
   ]);
 
   const followers = pickFirstNumber(item, ["followers", "followersCount", "followerCount"]);
@@ -808,4 +834,23 @@ function pickFirstNumber(record: Record<string, unknown>, keys: string[]): numbe
   }
 
   return undefined;
+}
+
+function extractApifyDatasetError(datasetPayload: unknown[]): string | null {
+  for (const item of datasetPayload) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const errorMessage = (item as { error?: unknown }).error;
+    if (typeof errorMessage === "string" && errorMessage.trim().length > 0) {
+      const normalized = errorMessage.replace(/\s+/g, " ").trim();
+      if (normalized.length > 140) {
+        return `${normalized.slice(0, 137)}...`;
+      }
+      return normalized;
+    }
+  }
+
+  return null;
 }
