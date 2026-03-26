@@ -27,6 +27,7 @@ describe("prospecting connectors (Apify)", () => {
     process.env.APIFY_API_BASE_URL = "https://api.apify.com";
     process.env.APIFY_BACKOFF_MS = "1,1,1";
     process.env.APIFY_MAX_RETRIES = "3";
+    process.env.PROSPECTING_ENABLE_DEMO_FALLBACK = "false";
   });
 
   afterEach(() => {
@@ -188,5 +189,34 @@ describe("prospecting connectors (Apify)", () => {
     expect(String(fetchMock.mock.calls[2]?.[0])).toBe(
       "https://places.googleapis.com/v1/places:searchText"
     );
+  });
+
+  it("uses local demo fallback when all connectors return no results in non-production", async () => {
+    process.env.PROSPECTING_ENABLE_DEMO_FALLBACK = "true";
+    process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID = "task-instagram";
+
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      createResponse(true, 200, {
+        data: {
+          status: "SUCCEEDED",
+          defaultDatasetId: "dataset-1",
+        },
+      })
+    );
+    fetchMock.mockResolvedValueOnce(createResponse(true, 200, []));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await searchProspects({
+      icp: "Clinicas esteticas premium",
+      niche: "Estetica premium",
+      region: "Sao Paulo",
+      sources: ["Instagram"],
+      limitPerSource: 4,
+    });
+
+    expect(response.results.length).toBeGreaterThan(0);
+    expect(response.results[0]?.company).toContain("(demo)");
+    expect(response.connectorStatus["Instagram"]).toContain("fallback local");
   });
 });
