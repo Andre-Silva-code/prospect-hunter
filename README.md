@@ -26,26 +26,31 @@ Prospect Hunter automates the process of finding and contacting medical professi
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-username/prospect-hunter.git
    cd prospect-hunter
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    # Edit .env.local and fill in your API keys
    ```
 
 4. **Generate NextAuth secret**
+
    ```bash
    openssl rand -base64 32
    ```
+
    Copy the output and paste into `NEXTAUTH_SECRET` in `.env.local`
 
 5. **Start development server**
@@ -131,16 +136,16 @@ prospect-hunter/
 
 Create `.env.local` from `.env.example`:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SUPABASE_URL` | Yes | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Yes | Supabase public key |
-| `NEXTAUTH_SECRET` | Yes | Session encryption key (generate with `openssl rand -base64 32`) |
-| `NEXTAUTH_URL` | Yes | Auth callback URL (http://localhost:3000 for dev) |
-| `APIFY_TOKEN` | Yes | Apify API token for scraping |
-| `GEMINI_API_KEY` | Yes | Google Gemini API key |
-| `REDIS_URL` | No | Redis connection (for job queue) |
-| `SENTRY_DSN` | No | Sentry error tracking |
+| Variable            | Required | Description                                                      |
+| ------------------- | -------- | ---------------------------------------------------------------- |
+| `SUPABASE_URL`      | Yes      | Supabase project URL                                             |
+| `SUPABASE_ANON_KEY` | Yes      | Supabase public key                                              |
+| `NEXTAUTH_SECRET`   | Yes      | Session encryption key (generate with `openssl rand -base64 32`) |
+| `NEXTAUTH_URL`      | Yes      | Auth callback URL (http://localhost:3000 for dev)                |
+| `APIFY_TOKEN`       | Yes      | Apify API token for scraping                                     |
+| `GEMINI_API_KEY`    | Yes      | Google Gemini API key                                            |
+| `REDIS_URL`         | No       | Redis connection (for job queue)                                 |
+| `SENTRY_DSN`        | No       | Sentry error tracking                                            |
 
 ## 🧪 Testing
 
@@ -162,6 +167,7 @@ Tests are located in `__tests__/` directory using Vitest.
 ### Deploy to Vercel
 
 1. **Push to GitHub**
+
    ```bash
    git push origin main
    ```
@@ -179,28 +185,33 @@ Tests are located in `__tests__/` directory using Vitest.
 ## 🐛 Troubleshooting
 
 ### Port 3000 already in use
+
 ```bash
 npm run dev -- -p 3001
 ```
 
 ### Module not found errors
+
 ```bash
 rm -rf node_modules package-lock.json
 npm install
 ```
 
 ### ESLint errors prevent commit
+
 ```bash
 npm run lint -- --fix
 ```
 
 ### Type checking errors
+
 ```bash
 npm run type-check
 ```
 
 ## 📖 Documentation
 
+- [Real Search Setup (Apify + Google Places)](./docs/real-search-setup.md)
 - [API Routes Design](./docs/api-spec.md)
 - [Database Schema](./docs/schema.md)
 - [Architecture](./docs/architecture.md)
