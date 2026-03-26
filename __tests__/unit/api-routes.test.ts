@@ -248,4 +248,45 @@ describe("gemini route validation", () => {
     expect(payload.error).toBe("Parametros invalidos");
     expect(generateGeminiOutreachMessage).not.toHaveBeenCalled();
   });
+
+  it("returns generated message when payload is valid", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({
+      id: "session-user",
+      name: "Operador",
+      email: "op@example.com",
+    });
+    vi.mocked(generateGeminiOutreachMessage).mockResolvedValue({
+      message: "Mensagem de abordagem validada.",
+      provider: "gemini",
+      cached: false,
+    });
+
+    const request = new Request("http://localhost/api/gemini/generate-message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        company: "Clinica Aurora",
+        niche: "Estetica",
+        region: "Sao Paulo",
+        trigger: "Anuncios ativos",
+        priority: "Alta",
+      }),
+    });
+
+    const response = await generateMessagePost(request);
+    const payload = (await response.json()) as { message: string; provider: string };
+
+    expect(response.status).toBe(200);
+    expect(payload.message).toBe("Mensagem de abordagem validada.");
+    expect(payload.provider).toBe("gemini");
+    expect(generateGeminiOutreachMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "session-user",
+        company: "Clinica Aurora",
+        priority: "Alta",
+      })
+    );
+  });
 });

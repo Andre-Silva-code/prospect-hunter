@@ -41,6 +41,7 @@ export async function POST(
   }
 
   const result = await generateGeminiOutreachMessage({
+    userId: sessionUser.id,
     company: payload.company,
     niche: payload.niche,
     region: payload.region,
