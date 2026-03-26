@@ -134,7 +134,9 @@ describe("prospecting connectors (Apify)", () => {
     });
 
     expect(response.results).toHaveLength(0);
-    expect(response.connectorStatus["Google Maps"]).toBe("Apify indisponivel (400)");
+    expect(response.connectorStatus["Google Maps"]).toBe(
+      "Apify indisponivel (400) | fallback Google Places indisponivel (GOOGLE_MAPS_API_KEY nao configurada)"
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -187,6 +189,49 @@ describe("prospecting connectors (Apify)", () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[2]?.[0])).toBe(
+      "https://places.googleapis.com/v1/places:searchText"
+    );
+  });
+
+  it("falls back to Google Places when Apify returns 401", async () => {
+    process.env.PROSPECT_APIFY_GOOGLE_MAPS_TASK_ID = "task-gmaps";
+    process.env.GOOGLE_MAPS_API_KEY = "google-api-key";
+
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(createResponse(false, 401, { error: "unauthorized" }));
+    fetchMock.mockResolvedValueOnce(
+      createResponse(true, 200, {
+        places: [
+          {
+            displayName: { text: "Clinica Horizonte" },
+            googleMapsUri: "https://maps.google.com/?cid=999",
+            formattedAddress: "Campinas, SP",
+            rating: 4.6,
+            userRatingCount: 112,
+          },
+        ],
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await searchProspects({
+      icp: "Clinicas estéticas",
+      niche: "Estetica",
+      region: "Campinas",
+      sources: ["Google Maps"],
+      limitPerSource: 5,
+    });
+
+    expect(response.results).toHaveLength(1);
+    expect(response.results[0]).toMatchObject({
+      company: "Clinica Horizonte",
+      source: "Google Maps",
+    });
+    expect(response.connectorStatus["Google Maps"]).toContain(
+      "Apify indisponivel (401) | fallback Google Places: 1 lead(s) encontrado(s)"
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
       "https://places.googleapis.com/v1/places:searchText"
     );
   });

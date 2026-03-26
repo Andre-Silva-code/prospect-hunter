@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
 import { generateGeminiOutreachMessage } from "@/lib/gemini-client";
+import { logger } from "@/lib/logger";
+import { checkGeminiRateLimit } from "@/lib/rate-limiter";
 import type { LeadPriority } from "@/types/prospecting";
 
 type Payload = {
@@ -40,6 +42,20 @@ export async function POST(
     return NextResponse.json({ error: "Parametros invalidos" }, { status: 400 });
   }
 
+  const rateCheck = checkGeminiRateLimit(sessionUser.id);
+  if (!rateCheck.allowed) {
+    logger.warn("Rate limit exceeded for Gemini message generation", {
+      userId: sessionUser.id,
+      retryAfterMs: rateCheck.retryAfterMs,
+    });
+    return NextResponse.json(
+      {
+        error: `Limite de mensagens excedido. Tente novamente em ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`,
+      },
+      { status: 429 }
+    );
+  }
+
   const result = await generateGeminiOutreachMessage({
     userId: sessionUser.id,
     company: payload.company,
@@ -47,6 +63,12 @@ export async function POST(
     region: payload.region,
     trigger: payload.trigger,
     priority: payload.priority,
+  });
+
+  logger.info("Gemini message generated", {
+    userId: sessionUser.id,
+    provider: result.provider,
+    company: payload.company,
   });
 
   return NextResponse.json(result);
