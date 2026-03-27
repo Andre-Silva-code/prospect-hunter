@@ -1,5 +1,6 @@
 import React from "react";
-import { kpis, channelPlan } from "@/lib/prospecting-data";
+import { channelPlan } from "@/lib/prospecting-data";
+import AnalyticsCards from "@/components/analytics-cards";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -33,18 +34,7 @@ export default function DashboardPage() {
             ICPs prioritários, score de qualificação, cadência multicanal e quadro de oportunidades
             — tudo num só lugar.
           </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {kpis.map((kpi) => (
-              <div
-                key={kpi.label}
-                className="rounded-2xl bg-white/[0.06] border border-white/[0.08] p-5"
-              >
-                <p className="text-xs text-[#a08a80] uppercase tracking-wider">{kpi.label}</p>
-                <p className="mt-2 text-2xl font-semibold text-[#f8efe4]">{kpi.value}</p>
-                <p className="mt-1 text-xs text-[#7a6258]">{kpi.detail}</p>
-              </div>
-            ))}
-          </div>
+          <AnalyticsCards />
         </div>
       </div>
 
