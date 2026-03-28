@@ -76,3 +76,19 @@ export const GooglePlacesResponseSchema = z.object({
 export type GooglePlacesResponse = z.infer<typeof GooglePlacesResponseSchema>;
 
 export const GenericConnectorPayloadSchema = z.array(z.record(z.string(), z.unknown()));
+
+// --- Uazapi WhatsApp API schemas ---
+
+export const UazapiNumberCheckSchema = z.object({
+  exists: z.boolean(),
+  jid: z.string().optional(),
+  number: z.string().optional(),
+});
+export type UazapiNumberCheck = z.infer<typeof UazapiNumberCheckSchema>;
+
+export const UazapiSendResponseSchema = z.object({
+  messageId: z.string().optional(),
+  status: z.string().optional(),
+  error: z.string().optional(),
+});
+export type UazapiSendResponse = z.infer<typeof UazapiSendResponseSchema>;

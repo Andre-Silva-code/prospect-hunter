@@ -53,3 +53,12 @@ export function checkApifyRateLimit(userId: string = "global"): RateLimitResult 
 export function checkGeminiRateLimit(userId: string = "global"): RateLimitResult {
   return checkRateLimit(`gemini:${userId}`, defaultGeminiConfig);
 }
+
+const defaultUazapiConfig: RateLimiterConfig = {
+  maxRequests: parseInt(process.env.UAZAPI_RATE_LIMIT_MAX ?? "10", 10) || 10,
+  windowMs: parseInt(process.env.UAZAPI_RATE_LIMIT_WINDOW_MS ?? "300000", 10) || 300000,
+};
+
+export function checkUazapiRateLimit(userId: string = "global"): RateLimitResult {
+  return checkRateLimit(`uazapi:${userId}`, defaultUazapiConfig);
+}

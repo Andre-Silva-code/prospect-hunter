@@ -154,6 +154,37 @@ export function buildNameFromParts(
   return value.length > 0 ? value : null;
 }
 
+/**
+ * Normaliza telefone brasileiro para formato WhatsApp (apenas dígitos com prefixo 55).
+ * Exemplos:
+ *   "(11) 98765-4321"  → "5511987654321"
+ *   "+55 11 98765-4321" → "5511987654321"
+ *   "11987654321"       → "5511987654321"
+ *   "+5511987654321"    → "5511987654321"
+ */
+export function normalizePhoneForWhatsApp(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 0) return null;
+
+  // Já tem código do país 55
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+    return digits;
+  }
+
+  // DDD + número (10 ou 11 dígitos)
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  // Número sem DDD (8 ou 9 dígitos) — não tem como saber o DDD
+  if (digits.length <= 9) return null;
+
+  // Formato inesperado longo demais
+  if (digits.length > 13) return null;
+
+  return digits;
+}
+
 export function extractRegionFromApifyItem(
   item: Record<string, unknown>,
   fallback: string
