@@ -182,7 +182,7 @@ export default function ProspectingPage() {
       setToast("Mensagem de análise GMN copiada! Abrindo GBP Check...");
     }
 
-    window.open(buildGbpCheckUrl(lead.company), "_blank", "noopener,noreferrer");
+    window.open(buildGbpCheckUrl(lead.company, lead.region), "_blank", "noopener,noreferrer");
     setContactedLeadIds((cur) => (cur.includes(lead.id) ? cur : [...cur, lead.id]));
   };
 

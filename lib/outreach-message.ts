@@ -58,6 +58,8 @@ export function generateGmnAuditMessage(
 }
 
 export function buildGbpCheckUrl(companyName: string, region?: string): string {
-  const query = region ? `${companyName} ${region}` : companyName;
-  return `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  const query = region
+    ? `${companyName} ${region} google meu negócio`
+    : `${companyName} google meu negócio`;
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }

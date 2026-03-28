@@ -47,13 +47,19 @@ describe("generateGmnAuditMessage", () => {
 });
 
 describe("buildGbpCheckUrl", () => {
-  it("builds a Google Maps search URL with company name", () => {
+  it("builds a Google Search URL with company name and GMN qualifier", () => {
     const url = buildGbpCheckUrl("Clinica Aurora");
-    expect(url).toBe("https://www.google.com/maps/search/Clinica%20Aurora");
+    expect(url).toContain("google.com/search?q=");
+    expect(url).toContain("Clinica%20Aurora");
+    expect(url).toContain("google%20meu%20neg");
+    expect(url).not.toContain("maps");
   });
 
   it("includes region when provided", () => {
     const url = buildGbpCheckUrl("Clinica Aurora", "São Paulo");
-    expect(url).toBe("https://www.google.com/maps/search/Clinica%20Aurora%20S%C3%A3o%20Paulo");
+    expect(url).toContain("google.com/search?q=");
+    expect(url).toContain("Clinica%20Aurora");
+    expect(url).toContain("S%C3%A3o%20Paulo");
+    expect(url).not.toContain("maps");
   });
 });
