@@ -20,6 +20,7 @@ export type ProspectSearchRequest = {
   icp: string;
   niche: string;
   region: string;
+  city?: string;
   sources: LeadSource[];
   limitPerSource: number;
 };

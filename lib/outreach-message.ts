@@ -37,3 +37,27 @@ export function generateOutreachMessage(lead: LeadRecord): string {
     "Se fizer sentido, eu te mostro em 15 minutos como eu atacaria isso com criativos, oferta e funil.",
   ].join(" ");
 }
+
+export function generateGmnAuditMessage(
+  lead: Pick<LeadRecord, "company" | "region" | "trigger">
+): string {
+  return [
+    `Olá, equipe da ${lead.company}!`,
+    `Encontrei o perfil de vocês no Google Meu Negócio enquanto analisava empresas em ${lead.region}.`,
+    `${lead.trigger}`,
+    "",
+    "Trabalho com otimização de fichas no Google e gostaria de oferecer uma análise gratuita e sem compromisso do perfil de vocês.",
+    "",
+    "Nessa análise eu mostro:",
+    "- Como o perfil está performando hoje",
+    "- Pontos que podem ser melhorados para aparecer mais nas buscas",
+    "- O que os concorrentes da região estão fazendo de diferente",
+    "",
+    "Posso enviar o relatório por aqui mesmo. Faz sentido para vocês?",
+  ].join("\n");
+}
+
+export function buildGbpCheckUrl(companyName: string, region?: string): string {
+  const query = region ? `${companyName} ${region}` : companyName;
+  return `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+}

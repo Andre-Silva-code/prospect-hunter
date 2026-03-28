@@ -5,30 +5,37 @@ import { searchApifyConnector } from "./apify";
 import { searchGooglePlaces } from "./google-places";
 import { shouldUseDemoFallback, buildDemoFallbackResults } from "./demo-fallback";
 import { normalizeConnectorItem } from "./normalizers";
+import { expandRegion } from "./utils";
 
 export async function searchProspects(
   request: ProspectSearchRequest
 ): Promise<ProspectSearchResponse> {
+  const stateName = expandRegion(request.region);
+  const regionLabel = request.city ? `${request.city}, ${stateName}` : stateName;
+  const expanded: ProspectSearchRequest = {
+    ...request,
+    region: regionLabel,
+  };
   const connectorStatus: Partial<Record<LeadSource, string>> = {};
 
   const chunks = await Promise.all(
-    request.sources.map(async (source) => {
+    expanded.sources.map(async (source) => {
       if (source === "Google Maps" || source === "Google Meu Negócio") {
-        const result = await searchGooglePlaces(source, request);
+        const result = await searchGooglePlaces(source, expanded);
         connectorStatus[source] = result.status;
         return result.results;
       }
 
-      const result = await searchGenericConnector(source, request);
+      const result = await searchGenericConnector(source, expanded);
       connectorStatus[source] = result.status;
       return result.results;
     })
   );
 
-  const results = chunks.flat();
+  const results = deduplicateResults(chunks.flat());
 
   if (results.length === 0 && shouldUseDemoFallback(connectorStatus)) {
-    const demoResults = buildDemoFallbackResults(request);
+    const demoResults = buildDemoFallbackResults(expanded);
     if (demoResults.length > 0) {
       for (const source of request.sources) {
         const existingStatus = connectorStatus[source];
@@ -42,6 +49,24 @@ export async function searchProspects(
   }
 
   return { results, connectorStatus };
+}
+
+function deduplicateResults(results: ProspectSearchResult[]): ProspectSearchResult[] {
+  const seen = new Map<string, ProspectSearchResult>();
+
+  for (const result of results) {
+    const key = result.company
+      .toLowerCase()
+      .replace(/[^a-záàâãéèêíïóôõúç0-9]/g, "")
+      .trim();
+
+    const existing = seen.get(key);
+    if (!existing || result.score > existing.score) {
+      seen.set(key, result);
+    }
+  }
+
+  return [...seen.values()];
 }
 
 async function searchGenericConnector(

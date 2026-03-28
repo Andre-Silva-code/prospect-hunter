@@ -101,3 +101,7 @@ npm run dev
 - `npm run typecheck`
 - `npm test`
 - `npm run build`
+
+## Validação automatizada
+
+Após configurar `.env.local`, rode `npm run check:prospecting-sources`. Esse script carrega as variáveis, executa `searchProspects` com dados de exemplo e mostra em tabela o status/contagem por fonte. Ele falha se nenhum conector responder, mantendo os logs para inspeção.

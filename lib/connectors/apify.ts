@@ -17,16 +17,18 @@ export function buildApifyInput(
   const baseSearch = `${request.niche} ${request.region}`;
 
   if (source === "Instagram") {
+    const businessQuery = `${request.niche} ${request.region}`;
     return {
-      search: baseSearch,
-      searchQuery: baseSearch,
-      query: baseSearch,
-      searchStringsArray: [baseSearch],
+      search: businessQuery,
+      searchQuery: businessQuery,
+      query: businessQuery,
+      searchStringsArray: [businessQuery, `${request.niche} empresa ${request.region}`],
       searchType: "user",
       maxItems: request.limitPerSource,
       resultsLimit: request.limitPerSource,
       limit: request.limitPerSource,
       includeRelatedProfiles: false,
+      onlyBusinessAccounts: true,
     };
   }
 
@@ -38,16 +40,19 @@ export function buildApifyInput(
       maxItems: request.limitPerSource,
       includeReviews: false,
       language: "pt-BR",
+      countryCode: "br",
     };
   }
 
+  // LinkedIn — busca por empresas com decisores
   return {
     search: baseSearch,
-    searchQuery: baseSearch,
-    keywords: [baseSearch],
+    searchQuery: `${request.niche} empresa ${request.region}`,
+    keywords: [baseSearch, `${request.niche} serviços ${request.region}`],
     query: baseSearch,
     limit: request.limitPerSource,
     maxItems: request.limitPerSource,
+    searchType: "company",
   };
 }
 

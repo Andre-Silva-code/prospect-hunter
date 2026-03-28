@@ -156,7 +156,10 @@ export function normalizeGooglePlace(
     source,
     icp: request.icp,
     contact: website || phone || "Sem contato publico",
-    sourceUrl: mapsUrl,
+    sourceUrl:
+      source === "Google Meu Negócio"
+        ? `https://www.google.com/search?q=${encodeURIComponent(company + " " + (address || request.region))}`
+        : mapsUrl,
   };
 }
 

@@ -10,6 +10,7 @@ type SearchPayload = {
   icp?: string;
   niche?: string;
   region?: string;
+  city?: string;
   sources?: LeadSource[];
   limitPerSource?: number;
 };
@@ -74,6 +75,7 @@ export async function POST(request: Request): Promise<
     icp: payload.icp,
     niche: payload.niche,
     region: payload.region,
+    city: payload.city || undefined,
     sources: payload.sources,
     limitPerSource,
   });

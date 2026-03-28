@@ -23,8 +23,7 @@ export async function searchGooglePlaces(
     return { results: [], status: "GOOGLE_MAPS_API_KEY nao configurada" };
   }
 
-  const queryPrefix = source === "Google Meu Negócio" ? "google meu negocio" : "google maps";
-  const textQuery = `${request.niche} ${request.region} ${queryPrefix}`;
+  const textQuery = `${request.niche} em ${request.region}, Brasil`;
 
   try {
     const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -38,6 +37,13 @@ export async function searchGooglePlaces(
       body: JSON.stringify({
         textQuery,
         languageCode: "pt-BR",
+        regionCode: "BR",
+        locationRestriction: {
+          rectangle: {
+            low: { latitude: -33.75, longitude: -73.99 },
+            high: { latitude: 5.27, longitude: -34.79 },
+          },
+        },
         maxResultCount: request.limitPerSource,
       }),
       cache: "no-store",
