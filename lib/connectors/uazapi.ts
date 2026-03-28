@@ -1,10 +1,18 @@
 import { UazapiNumberCheckSchema, UazapiSendResponseSchema } from "./types";
 import { fetchWithTimeout, isAbortError, normalizePhoneForWhatsApp } from "./utils";
 
-const UAZAPI_BASE_URL = process.env.UAZAPI_API_URL ?? "";
-const UAZAPI_TOKEN = process.env.UAZAPI_API_TOKEN ?? "";
-const UAZAPI_INSTANCE = process.env.UAZAPI_INSTANCE_ID ?? "";
-const UAZAPI_TIMEOUT_MS = parseIntegerEnv("UAZAPI_TIMEOUT_MS", 15000);
+function getBaseUrl(): string {
+  return process.env.UAZAPI_API_URL ?? "";
+}
+function getToken(): string {
+  return process.env.UAZAPI_API_TOKEN ?? "";
+}
+function getInstance(): string {
+  return process.env.UAZAPI_INSTANCE_ID ?? "";
+}
+function getTimeoutMs(): number {
+  return parseIntegerEnv("UAZAPI_TIMEOUT_MS", 15000);
+}
 
 export type UazapiCheckResult = {
   exists: boolean;
@@ -18,7 +26,7 @@ export type UazapiSendResult = {
 };
 
 export function isUazapiConfigured(): boolean {
-  return UAZAPI_BASE_URL.length > 0 && UAZAPI_TOKEN.length > 0 && UAZAPI_INSTANCE.length > 0;
+  return getBaseUrl().length > 0 && getToken().length > 0 && getInstance().length > 0;
 }
 
 /**
@@ -129,7 +137,7 @@ async function sendMessage(path: string, body: Record<string, unknown>): Promise
 }
 
 async function uazapiFetch(path: string, body: Record<string, unknown>): Promise<Response> {
-  const url = `${UAZAPI_BASE_URL}/instance/${encodeURIComponent(UAZAPI_INSTANCE)}${path}`;
+  const url = `${getBaseUrl()}/instance/${encodeURIComponent(getInstance())}${path}`;
 
   return fetchWithTimeout(
     url,
@@ -137,12 +145,12 @@ async function uazapiFetch(path: string, body: Record<string, unknown>): Promise
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${UAZAPI_TOKEN}`,
+        Authorization: `Bearer ${getToken()}`,
       },
       body: JSON.stringify(body),
       cache: "no-store",
     },
-    UAZAPI_TIMEOUT_MS
+    getTimeoutMs()
   );
 }
 

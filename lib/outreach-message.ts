@@ -57,6 +57,40 @@ export function generateGmnAuditMessage(
   ].join("\n");
 }
 
+/**
+ * Mensagem curta para WhatsApp (enviada junto com o PDF teaser).
+ */
+export function generateGmnWhatsAppMessage(lead: Pick<LeadRecord, "company" | "region">): string {
+  return [
+    `Ola, equipe da ${lead.company}!`,
+    `Fiz uma analise do perfil de voces no Google e encontrei pontos importantes que podem aumentar a visibilidade nas buscas da regiao de ${lead.region}.`,
+    "",
+    "Estou enviando o relatorio em anexo. Alguns dados estao protegidos, mas ja da pra ter uma ideia clara do potencial.",
+    "",
+    "Se quiser o relatorio completo e a implementacao das melhorias, e so responder aqui!",
+  ].join("\n");
+}
+
+/**
+ * Follow-up para leads que não responderam.
+ */
+export function generateGmnFollowUpMessage(lead: Pick<LeadRecord, "company">, step: 1 | 2): string {
+  if (step === 1) {
+    return [
+      `Oi! Enviei uma analise do perfil da ${lead.company} no Google ha alguns dias.`,
+      "Conseguiram dar uma olhada no relatorio?",
+      "",
+      "Fico a disposicao se quiserem conversar sobre as melhorias. E so responder aqui!",
+    ].join("\n");
+  }
+
+  return [
+    `Ola, ${lead.company}!`,
+    "So passando pra avisar que a analise do perfil de voces ainda esta disponivel.",
+    "Se fizer sentido no futuro, e so me chamar. Boa semana!",
+  ].join("\n");
+}
+
 export function buildGbpCheckUrl(companyName: string, region?: string): string {
   const query = region
     ? `${companyName} ${region} google meu negócio`
