@@ -158,7 +158,7 @@ export function normalizeGooglePlace(
     trigger: `Perfil com nota ${rating.toFixed(1)} e ${ratingCount} avaliacao(oes) no Google.`,
     source,
     icp: request.icp,
-    contact: website || phone || "Sem contato publico",
+    contact: [website, phone].filter(Boolean).join(" | ") || "Sem contato publico",
     sourceUrl:
       source === "Google Meu Negócio"
         ? `https://www.google.com/search?q=${encodeURIComponent(company + " " + (address || request.region))}`

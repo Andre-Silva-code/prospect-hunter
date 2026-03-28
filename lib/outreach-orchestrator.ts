@@ -17,6 +17,18 @@ const BRAND_NAME = process.env.OUTREACH_BRAND_NAME ?? "Prospect Hunter";
 const BRAND_COLOR = process.env.OUTREACH_BRAND_COLOR ?? "#a04b2c";
 const MAX_SEND_ATTEMPTS = 3;
 
+/**
+ * Extrai telefone do campo contact (que pode ser "website | phone" ou só phone).
+ */
+function extractPhoneFromContact(contact: string): string | null {
+  const parts = contact.split("|").map((p) => p.trim());
+  for (const part of parts) {
+    const normalized = normalizePhoneForWhatsApp(part);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 /** Delay aleatório entre 25-35 minutos (em ms) para parecer orgânico. */
 function randomDelay(): number {
   return (25 + Math.random() * 10) * 60 * 1000;
@@ -38,7 +50,7 @@ export async function initiateGmnOutreach(
     return { queued: false, reason: "Lead nao e GMN" };
   }
 
-  const normalized = normalizePhoneForWhatsApp(lead.contact);
+  const normalized = extractPhoneFromContact(lead.contact);
   if (!normalized) {
     return { queued: false, reason: "Telefone invalido ou ausente" };
   }
