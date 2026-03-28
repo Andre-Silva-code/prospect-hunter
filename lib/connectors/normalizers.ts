@@ -120,7 +120,10 @@ export function normalizeApifyItem(
     source,
     icp: request.icp,
     contact,
-    sourceUrl: sourceUrl ?? undefined,
+    sourceUrl:
+      source === "Google Meu Negócio"
+        ? `https://www.google.com/search?q=${encodeURIComponent(company + " " + (region || request.region))}`
+        : (sourceUrl ?? undefined),
   };
 }
 
