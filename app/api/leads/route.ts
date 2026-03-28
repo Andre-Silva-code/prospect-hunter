@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
 import { createLead, listLeads } from "@/lib/leads-repository";
+import { initiateGmnOutreach } from "@/lib/outreach-orchestrator";
+import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
 
 export async function GET(): Promise<NextResponse<LeadRecord[] | { error: string }>> {
@@ -31,6 +33,17 @@ export async function POST(
 
   try {
     const createdLead = await createLead(sessionUser.id, { ...lead, userId: sessionUser.id });
+
+    // Fire-and-forget: dispara outreach automático para leads GMN com telefone
+    if (createdLead.source === "Google Meu Negócio") {
+      initiateGmnOutreach(sessionUser.id, createdLead).catch((err) => {
+        logger.error("GMN outreach initiation failed", {
+          leadId: createdLead.id,
+          error: err instanceof Error ? err.message : "unknown",
+        });
+      });
+    }
+
     return NextResponse.json(createdLead, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to create lead" }, { status: 502 });

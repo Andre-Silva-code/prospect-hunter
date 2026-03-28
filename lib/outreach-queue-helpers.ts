@@ -1,0 +1,53 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import type { OutreachQueueItem } from "@/types/outreach";
+
+const queueFilePath = path.join(process.cwd(), "data", "outreach-queue.json");
+
+/**
+ * Busca um item na fila de outreach pelo JID do WhatsApp.
+ * Retorna o primeiro item com status "sent", "follow_up_1" ou "follow_up_2".
+ */
+export async function listAllOutreachItems(whatsappJid: string): Promise<OutreachQueueItem | null> {
+  if (process.env.LEADS_STORAGE_PROVIDER === "supabase") {
+    return findByJidSupabase(whatsappJid);
+  }
+  return findByJidFile(whatsappJid);
+}
+
+async function findByJidFile(jid: string): Promise<OutreachQueueItem | null> {
+  try {
+    const raw = await readFile(queueFilePath, "utf8");
+    const items = JSON.parse(raw) as OutreachQueueItem[];
+    const activeStatuses = ["sent", "follow_up_1", "follow_up_2"];
+
+    return items.find((i) => i.whatsappJid === jid && activeStatuses.includes(i.status)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null> {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/outreach_queue?whatsapp_jid=eq.${encodeURIComponent(jid)}&status=in.(sent,follow_up_1,follow_up_2)&limit=1`,
+      {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    const payload = (await response.json()) as OutreachQueueItem[];
+    return payload[0] ?? null;
+  } catch {
+    return null;
+  }
+}
