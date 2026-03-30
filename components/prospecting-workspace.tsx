@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { OutreachStatusSection } from "@/components/outreach-status-section";
 import type { SessionUser } from "@/lib/auth-session";
 import { generateOutreachMessage } from "@/lib/outreach-message";
 import type {
@@ -1063,6 +1064,9 @@ export function ProspectingWorkspace({
             ))}
           </div>
         </section>
+
+        {/* ── Status do Outreach ── */}
+        <OutreachStatusSection leads={leads} />
 
         {/* ── Pipeline kanban ── */}
         <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">

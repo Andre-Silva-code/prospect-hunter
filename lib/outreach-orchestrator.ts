@@ -8,13 +8,10 @@ import {
   sendTextMessage,
 } from "@/lib/connectors/uazapi";
 import { enqueueOutreach, updateQueueItem } from "@/lib/outreach-queue";
-import { extractGbpAuditData } from "@/lib/pdf/extract-audit-data";
-import { generateGbpAuditPdf } from "@/lib/pdf/gbp-audit-pdf";
+import { captureGbpCheckReport } from "@/lib/pdf/gbpcheck-capture";
 import { generateGmnWhatsAppMessage, generateGmnFollowUpMessage } from "@/lib/outreach-message";
 import { checkUazapiRateLimit } from "@/lib/rate-limiter";
 
-const BRAND_NAME = process.env.OUTREACH_BRAND_NAME ?? "Prospect Hunter";
-const BRAND_COLOR = process.env.OUTREACH_BRAND_COLOR ?? "#a04b2c";
 const MAX_SEND_ATTEMPTS = 3;
 
 /**
@@ -89,14 +86,14 @@ export async function verifyAndSchedule(item: OutreachQueueItem): Promise<void> 
 }
 
 /**
- * Processa um item agendado: gera PDF, envia mensagem + documento.
+ * Processa um item agendado: envia apenas mensagem de texto de prospecção.
+ * O relatório GBP Check só é enviado quando o lead responder (via webhook).
  * Chamado pelo cron a cada 5 minutos.
  */
 export async function processScheduledOutreach(
   item: OutreachQueueItem,
   lead: LeadRecord
 ): Promise<{ success: boolean; error: string | null }> {
-  // Rate limit
   const rateCheck = checkUazapiRateLimit(item.userId);
   if (!rateCheck.allowed) {
     return {
@@ -111,26 +108,14 @@ export async function processScheduledOutreach(
   }
 
   try {
-    // 1. Gerar PDF teaser
-    const auditData = extractGbpAuditData(lead);
-    const pdfBuffer = await generateGbpAuditPdf({
-      data: auditData,
-      blurredFields: ["improvements", "competitors", "responseRate", "categoryOptimization"],
-      brandName: BRAND_NAME,
-      brandColor: BRAND_COLOR,
-    });
-
-    // 2. Gerar mensagem
+    // 1. Gerar mensagem de prospecção (apenas texto, sem PDF)
     const message = generateGmnWhatsAppMessage({
       company: lead.company,
       region: lead.region,
     });
 
-    // 3. Enviar documento + mensagem
-    const pdfBase64 = pdfBuffer.toString("base64");
-    const fileName = `analise-gmn-${lead.company.replace(/\s+/g, "-").toLowerCase()}.pdf`;
-
-    const sendResult = await sendDocumentMessage(item.whatsappJid, message, pdfBase64, fileName);
+    // 2. Enviar texto via WhatsApp
+    const sendResult = await sendTextMessage(item.whatsappJid, message);
 
     if (!sendResult.success) {
       const attempts = item.attemptCount + 1;
@@ -143,7 +128,6 @@ export async function processScheduledOutreach(
         return { success: false, error: sendResult.error };
       }
 
-      // Reagendar para daqui a 5 minutos
       await updateQueueItem(item.id, {
         status: "scheduled",
         scheduledAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
@@ -153,12 +137,12 @@ export async function processScheduledOutreach(
       return { success: false, error: sendResult.error };
     }
 
-    // 4. Sucesso — atualizar status
+    // 3. Sucesso — marcar como enviado (PDF será gerado só quando responder)
     await updateQueueItem(item.id, {
       status: "sent",
       sentAt: new Date().toISOString(),
       messageId: sendResult.messageId,
-      pdfGenerated: true,
+      pdfGenerated: false,
       attemptCount: item.attemptCount + 1,
       lastError: null,
     });
@@ -178,6 +162,52 @@ export async function processScheduledOutreach(
       lastError: errorMsg,
     });
 
+    return { success: false, error: errorMsg };
+  }
+}
+
+/**
+ * Gera relatório GBP Check e envia PDF para o lead.
+ * Chamado quando o lead responde positivamente (via webhook).
+ */
+export async function sendGbpCheckReport(
+  item: OutreachQueueItem,
+  lead: LeadRecord
+): Promise<{ success: boolean; error: string | null }> {
+  if (!item.whatsappJid) {
+    return { success: false, error: "JID ausente" };
+  }
+
+  try {
+    // 1. Gerar PDF via GBP Check
+    const captureResult = await captureGbpCheckReport(lead.company);
+    if (!captureResult.success || !captureResult.pdfBuffer) {
+      return { success: false, error: captureResult.error || "Falha ao capturar relatório" };
+    }
+
+    // 2. Enviar PDF via WhatsApp
+    const pdfBase64 = captureResult.pdfBuffer.toString("base64");
+    const fileName = `analise-gmn-${lead.company.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+
+    const sendResult = await sendDocumentMessage(
+      item.whatsappJid,
+      `Segue a análise do perfil da ${lead.company} no Google! Qualquer dúvida, estou à disposição.`,
+      pdfBase64,
+      fileName
+    );
+
+    if (!sendResult.success) {
+      return { success: false, error: sendResult.error };
+    }
+
+    // 3. Atualizar status
+    await updateQueueItem(item.id, {
+      pdfGenerated: true,
+    });
+
+    return { success: true, error: null };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
     return { success: false, error: errorMsg };
   }
 }

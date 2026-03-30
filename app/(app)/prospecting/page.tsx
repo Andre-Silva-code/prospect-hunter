@@ -2,11 +2,7 @@
 
 import React from "react";
 
-import {
-  generateOutreachMessage,
-  generateGmnAuditMessage,
-  buildGbpCheckUrl,
-} from "@/lib/outreach-message";
+import { generateOutreachMessage } from "@/lib/outreach-message";
 import { icpSegments, outreachSteps } from "@/lib/prospecting-data";
 import type { LeadRecord, LeadSource } from "@/types/prospecting";
 import {
@@ -171,19 +167,50 @@ export default function ProspectingPage() {
   };
 
   const handleGmnAudit = async (lead: ProspectResult) => {
-    const msg = generateGmnAuditMessage({
+    setToast("Enviando lead ao CRM e iniciando outreach automático...");
+
+    // 1. Criar lead no CRM
+    const record: LeadRecord = {
+      id: crypto.randomUUID(),
+      userId: sessionUserId,
       company: lead.company,
+      niche: lead.niche,
       region: lead.region,
+      monthlyBudget: lead.monthlyBudget,
+      contact: lead.contact,
       trigger: lead.trigger,
-    });
+      stage: "Novo",
+      score: lead.score,
+      priority: lead.priority,
+      message: "",
+      contactStatus: "Pendente",
+      createdAt: new Date().toISOString(),
+      source: lead.source,
+      icp: lead.icp,
+      followUpIntervalDays: 2,
+      followUpStep: 0,
+      nextFollowUpAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      lastContactAt: null,
+    };
 
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(msg);
-      setToast("Mensagem de análise GMN copiada! Abrindo GBP Check...");
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record),
+      });
+
+      if (res.ok) {
+        setContactedLeadIds((cur) => (cur.includes(lead.id) ? cur : [...cur, lead.id]));
+        setToast(
+          `Lead "${lead.company}" enviado ao CRM! Outreach WhatsApp será iniciado automaticamente.`
+        );
+      } else {
+        setToast("Erro ao enviar lead ao CRM. Tente novamente.");
+      }
+    } catch {
+      setToast("Erro de conexão. Verifique se o servidor está rodando.");
     }
-
-    window.open(buildGbpCheckUrl(lead.company, lead.region), "_blank", "noopener,noreferrer");
-    setContactedLeadIds((cur) => (cur.includes(lead.id) ? cur : [...cur, lead.id]));
   };
 
   const openPreviewModal = async () => {

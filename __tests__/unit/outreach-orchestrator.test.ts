@@ -7,6 +7,18 @@ import type { OutreachQueueItem } from "@/types/outreach";
 
 const queueFilePath = path.join(process.cwd(), "data", "outreach-queue.json");
 
+// Mock do GBP Check capture (evita abrir Chrome nos testes)
+vi.mock("@/lib/pdf/gbpcheck-capture", () => {
+  return {
+    captureGbpCheckReport: () =>
+      Promise.resolve({
+        success: true,
+        pdfBuffer: Buffer.from("%PDF-1.4 mock pdf content"),
+        score: 72,
+      }),
+  };
+});
+
 async function cleanup(): Promise<void> {
   try {
     await unlink(queueFilePath);
@@ -126,7 +138,9 @@ describe("outreach-orchestrator", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ exists: true, jid: "5511987654321@s.whatsapp.net" }),
+        json: async () => [
+          { query: "5511987654321", isInWhatsapp: true, jid: "5511987654321@s.whatsapp.net" },
+        ],
       })
     );
 

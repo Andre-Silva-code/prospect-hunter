@@ -34,3 +34,8 @@ yarn-error.log*
 .cache/
 *.tmp
 data/leads.json
+
+# GBP Check
+gbpcheck-auth.json
+.gbpcheck-browser/
+data/gbpcheck-screenshots/

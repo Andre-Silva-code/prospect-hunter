@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { updateQueueItem } from "@/lib/outreach-queue";
-import { updateLeadRecord } from "@/lib/leads-repository";
+import { updateLeadRecord, getLeadById } from "@/lib/leads-repository";
+import { sendGbpCheckReport } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 
 type UazapiWebhookPayload = {
@@ -32,8 +33,6 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     logger.info("Webhook received", { event: payload.event, from: senderJid });
 
-    // Buscar na fila por JID — precisamos iterar (não temos índice por JID no file storage)
-    // Em produção (Supabase), isso seria uma query direta
     const { listAllOutreachItems } = await import("@/lib/outreach-queue-helpers");
     const matchingItem = await listAllOutreachItems(senderJid);
 
@@ -41,7 +40,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ status: "ignored", reason: "no matching outreach item" });
     }
 
-    // Atualizar fila
+    // Atualizar fila — marcar como respondido
     await updateQueueItem(matchingItem.id, { status: "replied" });
 
     // Atualizar lead no CRM
@@ -52,6 +51,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
 
     logger.info("Lead marked as replied", { leadId: matchingItem.leadId });
+
+    // Gerar e enviar relatório GBP Check (fire-and-forget)
+    if (!matchingItem.pdfGenerated) {
+      const lead = await getLeadById(matchingItem.userId, matchingItem.leadId);
+      if (lead) {
+        logger.info("Gerando relatório GBP Check para lead", { company: lead.company });
+        sendGbpCheckReport(matchingItem, lead)
+          .then((result) => {
+            if (result.success) {
+              logger.info("Relatório GBP Check enviado", { company: lead.company });
+            } else {
+              logger.error("Falha ao enviar relatório GBP Check", { error: result.error });
+            }
+          })
+          .catch((err) => {
+            logger.error("Erro ao gerar relatório GBP Check", {
+              error: err instanceof Error ? err.message : "unknown",
+            });
+          });
+      }
+    }
 
     return NextResponse.json({ status: "processed", leadId: matchingItem.leadId });
   } catch (error) {

@@ -1,4 +1,4 @@
-import { UazapiNumberCheckSchema, UazapiSendResponseSchema } from "./types";
+import { UazapiSendResponseSchema } from "./types";
 import { fetchWithTimeout, isAbortError, normalizePhoneForWhatsApp } from "./utils";
 
 function getBaseUrl(): string {
@@ -6,9 +6,6 @@ function getBaseUrl(): string {
 }
 function getToken(): string {
   return process.env.UAZAPI_API_TOKEN ?? "";
-}
-function getInstance(): string {
-  return process.env.UAZAPI_INSTANCE_ID ?? "";
 }
 function getTimeoutMs(): number {
   return parseIntegerEnv("UAZAPI_TIMEOUT_MS", 15000);
@@ -26,11 +23,12 @@ export type UazapiSendResult = {
 };
 
 export function isUazapiConfigured(): boolean {
-  return getBaseUrl().length > 0 && getToken().length > 0 && getInstance().length > 0;
+  return getBaseUrl().length > 0 && getToken().length > 0;
 }
 
 /**
  * Verifica se um número de telefone está registrado no WhatsApp.
+ * uazapiGO v2: POST /chat/check
  */
 export async function checkWhatsAppNumber(phone: string): Promise<UazapiCheckResult> {
   const normalized = normalizePhoneForWhatsApp(phone);
@@ -41,8 +39,9 @@ export async function checkWhatsAppNumber(phone: string): Promise<UazapiCheckRes
   }
 
   try {
-    const response = await uazapiFetch("/instance/checkNumber", {
-      number: normalized,
+    // uazapiGO v2: POST /chat/check { numbers: ["5511..."] }
+    const response = await uazapiFetch("/chat/check", {
+      numbers: [normalized],
     });
 
     if (!response.ok) {
@@ -50,13 +49,17 @@ export async function checkWhatsAppNumber(phone: string): Promise<UazapiCheckRes
     }
 
     const raw = (await response.json()) as unknown;
-    const parsed = UazapiNumberCheckSchema.safeParse(raw);
-    if (!parsed.success) return { exists: false, jid: null };
 
-    return {
-      exists: parsed.data.exists,
-      jid: parsed.data.jid ?? null,
-    };
+    // Resposta: [{ query, isInWhatsapp, jid, lid, verifiedName }]
+    if (Array.isArray(raw) && raw.length > 0) {
+      const first = raw[0] as Record<string, unknown>;
+      return {
+        exists: first.isInWhatsapp === true,
+        jid: (first.jid as string) ?? null,
+      };
+    }
+
+    return { exists: false, jid: null };
   } catch {
     return { exists: false, jid: null };
   }
@@ -64,13 +67,14 @@ export async function checkWhatsAppNumber(phone: string): Promise<UazapiCheckRes
 
 /**
  * Envia uma mensagem de texto simples via WhatsApp.
+ * uazapiGO v2: POST /send/text { number, text }
  */
 export async function sendTextMessage(jid: string, text: string): Promise<UazapiSendResult> {
   if (!isUazapiConfigured()) {
     return { success: false, messageId: null, error: "Uazapi nao configurado" };
   }
 
-  return sendMessage("/message/sendText", {
+  return sendMessage("/send/text", {
     number: jid,
     text,
   });
@@ -78,6 +82,7 @@ export async function sendTextMessage(jid: string, text: string): Promise<Uazapi
 
 /**
  * Envia um documento (PDF) com legenda via WhatsApp.
+ * uazapiGO v2: POST /send/media { number, caption, media, fileName, mediatype }
  */
 export async function sendDocumentMessage(
   jid: string,
@@ -89,12 +94,12 @@ export async function sendDocumentMessage(
     return { success: false, messageId: null, error: "Uazapi nao configurado" };
   }
 
-  return sendMessage("/message/sendDocument", {
+  return sendMessage("/send/media", {
     number: jid,
-    caption,
-    document: pdfBase64,
-    fileName,
-    mimetype: "application/pdf",
+    text: caption,
+    file: `data:application/pdf;base64,${pdfBase64}`,
+    docName: fileName,
+    type: "document",
   });
 }
 
@@ -112,22 +117,38 @@ async function sendMessage(path: string, body: Record<string, unknown>): Promise
       };
     }
 
-    const raw = (await response.json()) as unknown;
+    const raw = (await response.json()) as Record<string, unknown>;
+
+    // uazapiGO v2 retorna { messageid, id, chatid, ... } em caso de sucesso
+    if (raw.messageid || raw.id || raw.messageId) {
+      return {
+        success: true,
+        messageId:
+          (raw.messageid as string) ?? (raw.id as string) ?? (raw.messageId as string) ?? null,
+        error: null,
+      };
+    }
+
+    // Tentar parse com schema existente
     const parsed = UazapiSendResponseSchema.safeParse(raw);
-
-    if (!parsed.success) {
-      return { success: false, messageId: null, error: "Resposta Uazapi em formato invalido" };
+    if (parsed.success) {
+      if (parsed.data.error) {
+        return { success: false, messageId: null, error: parsed.data.error };
+      }
+      return {
+        success: true,
+        messageId: parsed.data.messageId ?? null,
+        error: null,
+      };
     }
 
-    if (parsed.data.error) {
-      return { success: false, messageId: null, error: parsed.data.error };
+    // Se tem code de erro
+    if (raw.code && (raw.code as number) >= 400) {
+      return { success: false, messageId: null, error: (raw.message as string) ?? "Erro Uazapi" };
     }
 
-    return {
-      success: true,
-      messageId: parsed.data.messageId ?? null,
-      error: null,
-    };
+    // Assumir sucesso se não houve erro explícito
+    return { success: true, messageId: null, error: null };
   } catch (error) {
     if (isAbortError(error)) {
       return { success: false, messageId: null, error: "Uazapi timeout" };
@@ -136,8 +157,12 @@ async function sendMessage(path: string, body: Record<string, unknown>): Promise
   }
 }
 
+/**
+ * uazapiGO v2: usa header "token" com o Instance Token.
+ * Path direto na raiz: /send/text, /chat/check, etc.
+ */
 async function uazapiFetch(path: string, body: Record<string, unknown>): Promise<Response> {
-  const url = `${getBaseUrl()}/instance/${encodeURIComponent(getInstance())}${path}`;
+  const url = `${getBaseUrl()}${path}`;
 
   return fetchWithTimeout(
     url,
@@ -145,7 +170,7 @@ async function uazapiFetch(path: string, body: Record<string, unknown>): Promise
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
+        token: getToken(),
       },
       body: JSON.stringify(body),
       cache: "no-store",

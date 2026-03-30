@@ -165,10 +165,13 @@ describe("uazapi client", () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({
-        exists: true,
-        jid: "5511987654321@s.whatsapp.net",
-      }),
+      json: async () => [
+        {
+          query: "5511987654321",
+          isInWhatsapp: true,
+          jid: "5511987654321@s.whatsapp.net",
+        },
+      ],
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -176,9 +179,7 @@ describe("uazapi client", () => {
     expect(result.exists).toBe(true);
     expect(result.jid).toBe("5511987654321@s.whatsapp.net");
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      "/instance/test-instance/instance/checkNumber"
-    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/chat/check");
   });
 
   it("checkWhatsAppNumber returns exists: false for invalid phone", async () => {
@@ -205,7 +206,7 @@ describe("uazapi client", () => {
     const result = await sendTextMessage("5511987654321@s.whatsapp.net", "Ola!");
     expect(result.success).toBe(true);
     expect(result.messageId).toBe("msg-123");
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/message/sendText");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/send/text");
   });
 
   it("sendDocumentMessage sends PDF with caption", async () => {
@@ -231,9 +232,9 @@ describe("uazapi client", () => {
     expect(result.messageId).toBe("msg-pdf-456");
 
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
-    expect(body.document).toBe("base64pdfcontent");
-    expect(body.fileName).toBe("analise-gmn.pdf");
-    expect(body.mimetype).toBe("application/pdf");
+    expect(body.file).toContain("base64pdfcontent");
+    expect(body.docName).toBe("analise-gmn.pdf");
+    expect(body.type).toBe("document");
   });
 
   it("handles API error gracefully", async () => {

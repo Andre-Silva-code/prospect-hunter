@@ -47,6 +47,11 @@ export async function createLead(userId: string, lead: LeadRecord): Promise<Lead
   return getLeadStorage().createLead(userId, lead);
 }
 
+export async function getLeadById(userId: string, leadId: string): Promise<LeadRecord | null> {
+  const leads = await listLeads(userId);
+  return leads.find((l) => l.id === leadId) ?? null;
+}
+
 export async function updateLeadRecord(
   userId: string,
   leadId: string,
@@ -308,7 +313,8 @@ function normalizeLeadRecord(value: unknown): LeadRecord | null {
     !stage ||
     score === null ||
     !priority ||
-    !message ||
+    message === null ||
+    message === undefined ||
     !contactStatus ||
     !createdAt
   ) {
