@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prospect Hunter - GMN Outreach Funnel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+                "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+                sans-serif;
+            background: #f3f4f6;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: white;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .controls button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .controls button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .controls button:active {
+            transform: translateY(0);
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: white;
+        }
+
+        #excalidraw-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .info-panel {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #e5e7eb;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+        }
+
+        .info-panel.active {
+            display: block;
+        }
+
+        .info-panel h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-panel p {
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .phase-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .phase-item h4 {
+            color: #1f2937;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .phase-item p {
+            margin: 0;
+            font-size: 12px;
+        }
+
+        .legend {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Prospect Hunter - GMN Outreach Funnel</h1>
+            <p>Fluxo automático de prospecção via WhatsApp com relatório PDF</p>
+        </header>
+
+        <div class="controls">
+            <button onclick="toggleInfo()">ℹ️ Info</button>
+            <button onclick="downloadData()">📥 Baixar</button>
+            <button onclick="editOnline()">✏️ Editar Online</button>
+        </div>
+
+        <div class="canvas-container">
+            <iframe id="excalidraw-iframe"></iframe>
+
+            <div class="info-panel" id="infoPanel">
+                <h3>📊 Fases do Funil</h3>
+
+                <div class="phase-item">
+                    <h4>Phase 1: Lead Criado</h4>
+                    <p>Lead GMN importado via POST /api/leads</p>
+                </div>
+
+                <div class="phase-item">
+                    <h4>Phase 2: Iniciar Outreach</h4>
+                    <p>Verificação de telefone no WhatsApp (Uazapi)</p>
+                </div>
+
+                <div class="phase-item">
+                    <h4>Phase 3: Enviar Mensagem</h4>
+                    <p>Mensagem convite com delay aleatório (25-35 min)</p>
+                </div>
+
+                <div class="phase-item">
+                    <h4>Phase 4: Lead Responde</h4>
+                    <p>Webhook recebe resposta do cliente</p>
+                </div>
+
+                <div class="phase-item">
+                    <h4>Phase 5: Enviar PDF</h4>
+                    <p>Se respondeu: gera Pré-Análise GBP Check e envia</p>
+                </div>
+
+                <div class="phase-item">
+                    <h4>Phase 6: Follow-up</h4>
+                    <p>Se não respondeu: follow-ups em 3 e 7 dias</p>
+                </div>
+
+                <div class="legend">
+                    <h4 style="margin-bottom: 10px; color: #1f2937;">🎨 Cores</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fbbf24;"></div>
+                        <span>Ação</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #93c5fd;"></div>
+                        <span>Validação</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #86efac;"></div>
+                        <span>Envio</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #c084fc;"></div>
+                        <span>Decisão</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fb7185;"></div>
+                        <span>Sem Resposta</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleInfo() {
+            const panel = document.getElementById("infoPanel");
+            panel.classList.toggle("active");
+        }
+
+        function downloadData() {
+            const link = document.createElement('a');
+            link.href = './gmn-outreach-funnel.excalidraw';
+            link.download = 'gmn-outreach-funnel.excalidraw';
+            link.click();
+        }
+
+        async function editOnline() {
+            const response = await fetch('./gmn-outreach-funnel.excalidraw');
+            const fileData = await response.text();
+            window.open(`https://excalidraw.com/?json=${encodeURIComponent(fileData)}`, '_blank');
+        }
+
+        async function loadDiagram() {
+            try {
+                const response = await fetch('./gmn-outreach-funnel.excalidraw');
+                const fileData = await response.text();
+                const encoded = encodeURIComponent(fileData);
+
+                // Carrega no iframe usando excalidraw online
+                const iframe = document.getElementById('excalidraw-iframe');
+                iframe.src = `https://excalidraw.com/?json=${encoded}&readonly=false`;
+            } catch (error) {
+                console.error('Erro ao carregar:', error);
+            }
+        }
+
+        // Carrega quando a página termina de carregar
+        window.addEventListener('load', loadDiagram);
+    </script>
+</body>
+</html>
