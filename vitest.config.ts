@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],
+    exclude: ["**/node_modules/**", "**/dist/**", ".aiox-core/**"],
   },
   resolve: {
     alias: {
