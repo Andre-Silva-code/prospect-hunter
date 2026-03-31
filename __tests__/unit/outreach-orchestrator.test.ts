@@ -279,8 +279,8 @@ describe("WhatsApp message templates", () => {
 
     expect(msg).toContain("Clinica Aurora");
     expect(msg).toContain("Sao Paulo, SP");
-    expect(msg).toContain("relatorio em anexo");
-    expect(msg).toContain("responder aqui");
+    expect(msg).toContain("pre-analise gratuita");
+    expect(msg).toContain("SIM");
   });
 
   it("generateGmnFollowUpMessage step 1", async () => {
