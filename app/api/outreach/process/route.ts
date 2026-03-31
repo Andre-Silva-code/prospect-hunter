@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSessionUser } from "@/lib/auth-session";
 import { getDueOutreachItems } from "@/lib/outreach-queue";
 import { listLeads } from "@/lib/leads-repository";
 import { processScheduledOutreach } from "@/lib/outreach-orchestrator";
@@ -7,12 +8,14 @@ import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Aceita autenticação por cron secret OU sessão do usuário
   const cronSecret = process.env.OUTREACH_CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const auth = request.headers.get("authorization");
+  const hasCronAuth = cronSecret && auth === `Bearer ${cronSecret}`;
+  const sessionUser = await getSessionUser();
+
+  if (!hasCronAuth && !sessionUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
