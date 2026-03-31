@@ -37,6 +37,7 @@ yarn-error.log*
 .cache/
 *.tmp
 data/leads.json
+data/outreach-queue.json
 
 # GBP Check
 gbpcheck-auth.json
