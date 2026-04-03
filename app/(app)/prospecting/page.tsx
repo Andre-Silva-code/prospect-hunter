@@ -167,9 +167,37 @@ export default function ProspectingPage() {
   };
 
   const handleGmnAudit = async (lead: ProspectResult) => {
-    setToast("Enviando lead ao CRM e iniciando outreach automático...");
+    // 1. Verificar número no WhatsApp antes de qualquer ação
+    setToast("Verificando número no WhatsApp...");
 
-    // 1. Criar lead no CRM
+    let whatsappStatus: string = "uazapi_off";
+    try {
+      const checkRes = await fetch(
+        `/api/outreach/check?contact=${encodeURIComponent(lead.contact)}`
+      );
+      if (checkRes.ok) {
+        const data = (await checkRes.json()) as { status: typeof whatsappStatus };
+        whatsappStatus = data.status;
+      }
+    } catch {
+      // Se falhar a verificação, segue sem outreach automático
+    }
+
+    if (whatsappStatus === "no_phone") {
+      setToast(
+        `⚠️ "${lead.company}" não tem telefone nos dados — lead salvo no CRM sem outreach automático.`
+      );
+    } else if (whatsappStatus === "not_found") {
+      setToast(
+        `⚠️ Número de "${lead.company}" não está no WhatsApp — lead salvo no CRM sem outreach automático.`
+      );
+    } else if (whatsappStatus === "found") {
+      setToast(
+        `✅ WhatsApp encontrado para "${lead.company}" — mensagem será enviada automaticamente.`
+      );
+    }
+
+    // 2. Salvar no CRM independente do resultado (para rastrear o lead)
     const record: LeadRecord = {
       id: crypto.randomUUID(),
       userId: sessionUserId,
@@ -202,11 +230,13 @@ export default function ProspectingPage() {
 
       if (res.ok) {
         setContactedLeadIds((cur) => (cur.includes(lead.id) ? cur : [...cur, lead.id]));
-        setToast(
-          `Lead "${lead.company}" enviado ao CRM! Outreach WhatsApp será iniciado automaticamente.`
-        );
+        if (whatsappStatus === "uazapi_off") {
+          setToast(
+            `Lead "${lead.company}" salvo no CRM. WhatsApp não configurado — outreach manual.`
+          );
+        }
       } else {
-        setToast("Erro ao enviar lead ao CRM. Tente novamente.");
+        setToast("Erro ao salvar lead no CRM. Tente novamente.");
       }
     } catch {
       setToast("Erro de conexão. Verifique se o servidor está rodando.");
