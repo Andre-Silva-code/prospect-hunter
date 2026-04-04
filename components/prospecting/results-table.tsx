@@ -41,6 +41,7 @@ type ResultsTableProps = {
   isSendingToCrm: boolean;
   crmProgress: { current: number; total: number };
   crmFeedback: string;
+  crmContacts: Set<string>;
   onToggleSelection: (id: string) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
@@ -135,6 +136,7 @@ export default function ResultsTable({
   isSendingToCrm,
   crmProgress,
   crmFeedback,
+  crmContacts,
   onToggleSelection,
   onSelectAll,
   onDeselectAll,
@@ -142,6 +144,9 @@ export default function ResultsTable({
   onGmnAudit,
   onSendToCrm,
 }: ResultsTableProps) {
+  const isInCrm = (prospect: ProspectResult) =>
+    crmContacts.has(prospect.contact?.trim().toLowerCase()) ||
+    crmContacts.has(prospect.company?.trim().toLowerCase());
   const [sortField, setSortField] = useState<SortField>("score");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [filters, setFilters] = useState<FilterState>({ source: "all", priority: "all" });
@@ -343,7 +348,14 @@ export default function ResultsTable({
                       />
                     </td>
                     <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                      {prospect.company}
+                      <div className="flex items-center gap-2">
+                        {prospect.company}
+                        {isInCrm(prospect) && (
+                          <span className="inline-flex items-center rounded-full bg-[#2a8a50]/10 border border-[#2a8a50]/20 px-2 py-0.5 text-[10px] font-semibold text-[#2a8a50] whitespace-nowrap">
+                            No CRM
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-[#655248]">{prospect.niche}</td>
                     <td className="px-4 py-3 text-[#655248] whitespace-nowrap">
@@ -378,10 +390,19 @@ export default function ResultsTable({
                           <button
                             type="button"
                             onClick={() => onGmnAudit(prospect)}
-                            className="inline-flex items-center justify-center rounded-xl border border-[#2a8a50]/30 bg-[#2a8a50]/5 px-3 py-2 text-xs font-semibold text-[#2a8a50] transition hover:bg-[#2a8a50]/10"
-                            title="Oferecer análise gratuita do perfil GMN via GBP Check"
+                            disabled={isInCrm(prospect)}
+                            className={`inline-flex items-center justify-center rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                              isInCrm(prospect)
+                                ? "border-[rgba(35,24,21,0.08)] bg-[rgba(35,24,21,0.03)] text-[#b8a99f] cursor-not-allowed"
+                                : "border-[#2a8a50]/30 bg-[#2a8a50]/5 text-[#2a8a50] hover:bg-[#2a8a50]/10"
+                            }`}
+                            title={
+                              isInCrm(prospect)
+                                ? "Lead já está no CRM"
+                                : "Oferecer análise gratuita do perfil GMN via GBP Check"
+                            }
                           >
-                            Oferecer Análise
+                            {isInCrm(prospect) ? "Já no CRM" : "Oferecer Análise"}
                           </button>
                         )}
                       </div>

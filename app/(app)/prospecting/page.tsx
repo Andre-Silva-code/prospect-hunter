@@ -56,6 +56,25 @@ export default function ProspectingPage() {
   const [toast, setToast] = React.useState<string | null>(null);
   const [previewModal, setPreviewModal] = React.useState(false);
   const [previewMessages, setPreviewMessages] = React.useState<Map<string, string>>(new Map());
+  const [crmContacts, setCrmContacts] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/leads");
+        if (!res.ok) return;
+        const leads = (await res.json()) as { contact: string; company: string }[];
+        const keys = new Set<string>();
+        for (const l of leads) {
+          if (l.contact) keys.add(l.contact.trim().toLowerCase());
+          if (l.company) keys.add(l.company.trim().toLowerCase());
+        }
+        setCrmContacts(keys);
+      } catch {
+        /* silencioso */
+      }
+    })();
+  }, []);
 
   const icpOptions: IcpProfile[] = [
     "Clinicas esteticas premium",
@@ -346,6 +365,12 @@ export default function ProspectingPage() {
 
       if (res.ok) {
         setContactedLeadIds((cur) => (cur.includes(lead.id) ? cur : [...cur, lead.id]));
+        setCrmContacts((prev) => {
+          const next = new Set(prev);
+          if (lead.contact) next.add(lead.contact.trim().toLowerCase());
+          if (lead.company) next.add(lead.company.trim().toLowerCase());
+          return next;
+        });
         if (whatsappStatus === "uazapi_off") {
           setToast(
             `Lead "${lead.company}" salvo no CRM. WhatsApp não configurado — outreach manual.`
@@ -457,6 +482,14 @@ export default function ProspectingPage() {
     setIsSendingToCrm(false);
     setCrmFeedback(`${created} lead(s) enviado(s) ao CRM com sucesso.`);
     setToast(`${created} lead(s) enviado(s) ao CRM!`);
+    setCrmContacts((prev) => {
+      const next = new Set(prev);
+      for (const lead of selected) {
+        if (lead.contact) next.add(lead.contact.trim().toLowerCase());
+        if (lead.company) next.add(lead.company.trim().toLowerCase());
+      }
+      return next;
+    });
   };
 
   return (
@@ -624,6 +657,7 @@ export default function ProspectingPage() {
         onDirectProspect={(lead) => void handleDirectProspecting(lead)}
         onGmnAudit={(lead) => void handleGmnAudit(lead)}
         onSendToCrm={() => void openPreviewModal()}
+        crmContacts={crmContacts}
       />
 
       {/* Seções educativas - colapsáveis */}
