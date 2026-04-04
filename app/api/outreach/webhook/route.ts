@@ -63,34 +63,61 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ status: "ignored", reason: "no matching outreach item" });
     }
 
-    // Atualizar fila — marcar como respondido
-    await updateQueueItem(matchingItem.id, { status: "replied" });
-
-    // Atualizar lead no CRM
-    await updateLeadRecord(matchingItem.userId, matchingItem.leadId, {
-      contactStatus: "Respondeu",
-      stage: "Diagnóstico",
-      lastContactAt: new Date().toISOString(),
-    });
-
-    logger.info("Lead marked as replied", { leadId: matchingItem.leadId });
+    const isPostAnalysis = ["pdf_sent", "post_analysis_1", "post_analysis_2"].includes(
+      matchingItem.status
+    );
 
     const lead = await getLeadById(matchingItem.userId, matchingItem.leadId);
 
-    // Confirmar ao lead que o relatório está sendo preparado
-    sendTextMessage(
-      senderJid,
-      `Ótimo! Vou preparar a análise do perfil da ${lead?.company ?? "sua empresa"} no Google e envio em breve. Aguarde!`
-    ).catch(() => {});
+    // Atualizar fila — marcar como respondido
+    await updateQueueItem(matchingItem.id, { status: "replied" });
 
-    // Notificar o dono do sistema para gerar e enviar o PDF
-    const ownerPhone = process.env.OWNER_PHONE;
-    if (ownerPhone) {
-      const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
+    if (isPostAnalysis) {
+      // Lead respondeu após receber a análise — quer reunião
+      await updateLeadRecord(matchingItem.userId, matchingItem.leadId, {
+        contactStatus: "Respondeu",
+        stage: "Proposta",
+        lastContactAt: new Date().toISOString(),
+      });
+
+      logger.info("Lead replied post-analysis", { leadId: matchingItem.leadId });
+
       sendTextMessage(
-        ownerJid,
-        `🔔 Lead respondeu!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nAcesse o CRM → aba "Pipeline" → card em "Diagnóstico" → clique em "Enviar Relatório GBP Check".`
+        senderJid,
+        `Que ótimo, ${lead?.company ?? ""}! Vou entrar em contato para agendarmos uma conversa rápida. Fique de olho! 🤝`
       ).catch(() => {});
+
+      const ownerPhone = process.env.OWNER_PHONE;
+      if (ownerPhone) {
+        const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
+        sendTextMessage(
+          ownerJid,
+          `✅ Lead interessado em reunião!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nEstá aguardando contato para agendar. Acesse o CRM → card em "Reunião".`
+        ).catch(() => {});
+      }
+    } else {
+      // Resposta inicial ao "Responda SIM" — preparar análise
+      await updateLeadRecord(matchingItem.userId, matchingItem.leadId, {
+        contactStatus: "Respondeu",
+        stage: "Diagnóstico",
+        lastContactAt: new Date().toISOString(),
+      });
+
+      logger.info("Lead marked as replied", { leadId: matchingItem.leadId });
+
+      sendTextMessage(
+        senderJid,
+        `Ótimo! Vou preparar a análise do perfil da ${lead?.company ?? "sua empresa"} no Google e envio em breve. Aguarde!`
+      ).catch(() => {});
+
+      const ownerPhone = process.env.OWNER_PHONE;
+      if (ownerPhone) {
+        const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
+        sendTextMessage(
+          ownerJid,
+          `🔔 Lead respondeu!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nAcesse o CRM → aba "Pipeline" → card em "Diagnóstico" → clique em "Enviar Relatório GBP Check".`
+        ).catch(() => {});
+      }
     }
 
     return NextResponse.json({ status: "processed", leadId: matchingItem.leadId });
