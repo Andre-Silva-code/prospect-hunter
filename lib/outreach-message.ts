@@ -62,10 +62,15 @@ export function generateGmnAuditMessage(
  */
 export function generateGmnWhatsAppMessage(lead: Pick<LeadRecord, "company" | "region">): string {
   return [
-    `Ola, equipe da ${lead.company}!`,
-    `Fiz uma analise do perfil de voces no Google Meu Negocio e encontrei pontos que podem aumentar a visibilidade nas buscas da regiao de ${lead.region}.`,
+    `Oi, ${lead.company}! 👋`,
     "",
-    "Posso enviar uma pre-analise gratuita mostrando o que pode ser melhorado? E so responder SIM aqui!",
+    `Estava analisando perfis no Google Meu Negócio aqui em ${lead.region} e o de vocês chamou minha atenção.`,
+    "",
+    "Encontrei alguns pontos que estão fazendo vocês perderem posição nas buscas para concorrentes da região.",
+    "",
+    "Posso te mostrar o que encontrei? É gratuito e leva 2 minutinhos.",
+    "",
+    "Responde SIM que te envio a análise completa! 👇",
   ].join("\n");
 }
 
