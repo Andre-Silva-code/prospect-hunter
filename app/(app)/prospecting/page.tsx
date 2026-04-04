@@ -4,7 +4,16 @@ import React from "react";
 
 import { generateOutreachMessage } from "@/lib/outreach-message";
 import { icpSegments, outreachSteps } from "@/lib/prospecting-data";
-import type { LeadRecord, LeadSource } from "@/types/prospecting";
+import type { IcpProfile, LeadRecord, LeadSource } from "@/types/prospecting";
+import {
+  icpToNiche,
+  icpToBudget,
+  defaultIcp,
+  calculateLeadScore,
+  getLeadPriority,
+  cadenceFromSource,
+  addDaysToIso,
+} from "@/hooks/use-leads";
 import {
   ConnectorStatusBar,
   ICP_OPTIONS,
@@ -48,6 +57,119 @@ export default function ProspectingPage() {
   const [toast, setToast] = React.useState<string | null>(null);
   const [previewModal, setPreviewModal] = React.useState(false);
   const [previewMessages, setPreviewMessages] = React.useState<Map<string, string>>(new Map());
+
+  const icpOptions: IcpProfile[] = [
+    "Clinicas esteticas premium",
+    "Infoprodutores locais",
+    "Escritorios de advocacia nichados",
+  ];
+  const sourceOptions: LeadSource[] = [
+    "Instagram",
+    "LinkedIn",
+    "Google Maps",
+    "Google Meu Negócio",
+  ];
+
+  const [showManualForm, setShowManualForm] = React.useState(false);
+  const [manualIcp, setManualIcp] = React.useState<IcpProfile>(defaultIcp);
+  const [manualSource, setManualSource] = React.useState<LeadSource>("Google Meu Negócio");
+  const [manualForm, setManualForm] = React.useState({
+    company: "",
+    niche: icpToNiche[defaultIcp],
+    region: "",
+    monthlyBudget: icpToBudget[defaultIcp],
+    contact: "",
+    trigger: "",
+  });
+  const [isSubmittingManual, setIsSubmittingManual] = React.useState(false);
+
+  const handleManualIcpChange = (icp: IcpProfile) => {
+    setManualIcp(icp);
+    setManualForm((f) => ({
+      ...f,
+      niche: icpToNiche[icp],
+      monthlyBudget: icpToBudget[icp],
+    }));
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const { company, niche, region, monthlyBudget, contact, trigger } = manualForm;
+    if (!company || !niche || !region || !monthlyBudget || !contact || !trigger) return;
+
+    setIsSubmittingManual(true);
+    const values = {
+      company,
+      niche,
+      region,
+      monthlyBudget,
+      contact,
+      trigger,
+      source: manualSource,
+      icp: manualIcp,
+    };
+    const score = calculateLeadScore(values);
+    const priority = getLeadPriority(score);
+    const followUpDays = cadenceFromSource(manualSource);
+    const now = new Date().toISOString();
+    const record: LeadRecord = {
+      id: crypto.randomUUID(),
+      userId: sessionUserId,
+      company,
+      niche,
+      region,
+      monthlyBudget,
+      contact,
+      trigger,
+      source: manualSource,
+      icp: manualIcp,
+      stage: "Novo",
+      score,
+      priority,
+      message: generateOutreachMessage({
+        ...values,
+        id: "",
+        userId: sessionUserId,
+        stage: "Novo",
+        score,
+        priority,
+        message: "",
+        contactStatus: "Pendente",
+        createdAt: now,
+      }),
+      contactStatus: "Pendente",
+      createdAt: now,
+      followUpIntervalDays: followUpDays,
+      followUpStep: 0,
+      nextFollowUpAt: addDaysToIso(now, followUpDays),
+      lastContactAt: null,
+    };
+
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record),
+      });
+      if (res.ok) {
+        setToast(`Lead "${company}" adicionado ao CRM!`);
+        setManualForm({
+          company: "",
+          niche: icpToNiche[manualIcp],
+          region: "",
+          monthlyBudget: icpToBudget[manualIcp],
+          contact: "",
+          trigger: "",
+        });
+      } else {
+        setToast("Erro ao salvar lead. Tente novamente.");
+      }
+    } catch {
+      setToast("Erro de conexão. Tente novamente.");
+    } finally {
+      setIsSubmittingManual(false);
+    }
+  };
 
   const selectedIcp = React.useMemo(
     () => ICP_OPTIONS.find((o) => o.value === selectedIcpValue) ?? ICP_OPTIONS[0],
@@ -377,6 +499,114 @@ export default function ProspectingPage() {
 
       {/* Histórico de buscas */}
       <SearchHistory onReplay={handleReplaySearch} />
+
+      {/* Adicionar lead manualmente */}
+      <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] shadow-sm overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowManualForm((v) => !v)}
+          className="w-full flex items-center justify-between p-7 text-left hover:bg-[#fffaf5] transition-colors"
+        >
+          <div>
+            <SectionLabel>Entrada manual</SectionLabel>
+            <h2 className="text-xl font-semibold text-[#231815]">Adicionar lead manualmente</h2>
+            <p className="text-sm text-[#8a7569] mt-1">
+              Cadastre um lead diretamente no CRM sem passar pela busca automática.
+            </p>
+          </div>
+          <span
+            className="text-2xl text-[#8a7569] transition-transform duration-200 shrink-0"
+            style={{ transform: showManualForm ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            ▼
+          </span>
+        </button>
+
+        {showManualForm && (
+          <form onSubmit={(e) => void handleManualSubmit(e)} className="px-7 pb-7 space-y-5">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                  ICP alvo
+                </span>
+                <select
+                  value={manualIcp}
+                  onChange={(e) => handleManualIcpChange(e.target.value as IcpProfile)}
+                  className="rounded-xl border border-[rgba(35,24,21,0.12)] bg-white px-3.5 py-2.5 text-sm text-[#231815] outline-none focus:border-[#a04b2c] focus:ring-1 focus:ring-[#a04b2c]/40"
+                >
+                  {icpOptions.map((icp) => (
+                    <option key={icp} value={icp}>
+                      {icp}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                  Fonte
+                </span>
+                <select
+                  value={manualSource}
+                  onChange={(e) => setManualSource(e.target.value as LeadSource)}
+                  className="rounded-xl border border-[rgba(35,24,21,0.12)] bg-white px-3.5 py-2.5 text-sm text-[#231815] outline-none focus:border-[#a04b2c] focus:ring-1 focus:ring-[#a04b2c]/40"
+                >
+                  {sourceOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {(
+                [
+                  { label: "Empresa", name: "company" },
+                  { label: "Nicho", name: "niche" },
+                  { label: "Região", name: "region" },
+                  { label: "Verba mensal", name: "monthlyBudget" },
+                  { label: "Contato (WhatsApp)", name: "contact" },
+                ] as { label: string; name: keyof typeof manualForm }[]
+              ).map(({ label, name }) => (
+                <label key={name} className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                    {label}
+                  </span>
+                  <input
+                    required
+                    value={manualForm[name]}
+                    onChange={(e) => setManualForm((f) => ({ ...f, [name]: e.target.value }))}
+                    className="rounded-xl border border-[rgba(35,24,21,0.12)] bg-white px-3.5 py-2.5 text-sm text-[#231815] placeholder-[#b8a99f] outline-none focus:border-[#a04b2c] focus:ring-1 focus:ring-[#a04b2c]/40"
+                  />
+                </label>
+              ))}
+            </div>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                Gatilho de abordagem
+              </span>
+              <textarea
+                required
+                rows={3}
+                value={manualForm.trigger}
+                onChange={(e) => setManualForm((f) => ({ ...f, trigger: e.target.value }))}
+                className="resize-none rounded-xl border border-[rgba(35,24,21,0.12)] bg-white px-3.5 py-2.5 text-sm text-[#231815] placeholder-[#b8a99f] outline-none focus:border-[#a04b2c] focus:ring-1 focus:ring-[#a04b2c]/40"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={isSubmittingManual}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-[#a04b2c] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#b55a38] active:scale-[0.98] disabled:opacity-60"
+            >
+              {isSubmittingManual ? "Salvando..." : "Adicionar lead ao CRM"}
+            </button>
+          </form>
+        )}
+      </div>
 
       {/* Status detalhado pós-busca */}
       <ConnectorStatusBar connectorStatus={connectorStatus} />
