@@ -8,6 +8,9 @@ export type OutreachStatus =
   | "replied"
   | "follow_up_1"
   | "follow_up_2"
+  | "pdf_sent"
+  | "post_analysis_1"
+  | "post_analysis_2"
   | "failed";
 
 export type OutreachQueueItem = {

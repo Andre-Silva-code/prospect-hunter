@@ -9,7 +9,11 @@ import {
 } from "@/lib/connectors/uazapi";
 import { enqueueOutreach, updateQueueItem } from "@/lib/outreach-queue";
 import { captureGbpCheckReport } from "@/lib/pdf/gbpcheck-capture";
-import { generateGmnWhatsAppMessage, generateGmnFollowUpMessage } from "@/lib/outreach-message";
+import {
+  generateGmnWhatsAppMessage,
+  generateGmnFollowUpMessage,
+  generatePostAnalysisMessage,
+} from "@/lib/outreach-message";
 import { checkUazapiRateLimit } from "@/lib/rate-limiter";
 
 const MAX_SEND_ATTEMPTS = 3;
@@ -203,10 +207,15 @@ export async function sendGbpCheckReport(
       return { success: false, error: sendResult.error };
     }
 
-    // 3. Atualizar status
+    // 3. Atualizar status para pdf_sent
     await updateQueueItem(item.id, {
       pdfGenerated: true,
+      status: "pdf_sent",
     });
+
+    // 4. Enviar Mensagem 1 pós-análise imediatamente após o PDF
+    const followUpMsg = generatePostAnalysisMessage({ company: lead.company }, 1);
+    await sendTextMessage(item.whatsappJid, followUpMsg);
 
     return { success: true, error: null };
   } catch (error) {
@@ -241,6 +250,40 @@ export async function processFollowUp(
   }
 
   const nextStatus = step === 1 ? "follow_up_1" : "follow_up_2";
+  await updateQueueItem(item.id, {
+    status: nextStatus,
+    messageId: sendResult.messageId,
+  });
+
+  return { success: true, error: null };
+}
+
+/**
+ * Envia follow-up pós-análise para leads que receberam o PDF mas não responderam.
+ * step 2 = Mensagem 2 (24h após PDF), step 3 = Mensagem 3 (48h após Mensagem 2).
+ */
+export async function processPostAnalysisFollowUp(
+  item: OutreachQueueItem,
+  lead: LeadRecord,
+  step: 2 | 3
+): Promise<{ success: boolean; error: string | null }> {
+  const rateCheck = checkUazapiRateLimit(item.userId);
+  if (!rateCheck.allowed) {
+    return { success: false, error: "Rate limit" };
+  }
+
+  if (!item.whatsappJid) {
+    return { success: false, error: "JID ausente" };
+  }
+
+  const message = generatePostAnalysisMessage({ company: lead.company }, step);
+  const sendResult = await sendTextMessage(item.whatsappJid, message);
+
+  if (!sendResult.success) {
+    return { success: false, error: sendResult.error };
+  }
+
+  const nextStatus = step === 2 ? "post_analysis_1" : "post_analysis_2";
   await updateQueueItem(item.id, {
     status: nextStatus,
     messageId: sendResult.messageId,

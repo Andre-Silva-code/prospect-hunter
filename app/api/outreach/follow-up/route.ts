@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getFollowUpDueItems } from "@/lib/outreach-queue";
 import { listLeads } from "@/lib/leads-repository";
-import { processFollowUp } from "@/lib/outreach-orchestrator";
+import { processFollowUp, processPostAnalysisFollowUp } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
 
@@ -20,10 +20,20 @@ export async function POST(request: Request): Promise<NextResponse> {
     const sentDue = await getFollowUpDueItems("sent", 3);
     // Follow-up 2: leads com follow_up_1 há 3+ dias (total 6 dias)
     const followUp1Due = await getFollowUpDueItems("follow_up_1", 3);
+    // Pós-análise 2: receberam o PDF há 1+ dia sem resposta
+    const pdfSentDue = await getFollowUpDueItems("pdf_sent", 1);
+    // Pós-análise 3: receberam mensagem 2 há 2+ dias sem resposta
+    const postAnalysis1Due = await getFollowUpDueItems("post_analysis_1", 2);
 
     const allItems = [
-      ...sentDue.map((item) => ({ item, step: 1 as const })),
-      ...followUp1Due.map((item) => ({ item, step: 2 as const })),
+      ...sentDue.map((item) => ({ item, step: 1 as const, type: "gmn" as const })),
+      ...followUp1Due.map((item) => ({ item, step: 2 as const, type: "gmn" as const })),
+      ...pdfSentDue.map((item) => ({ item, step: 2 as const, type: "post_analysis" as const })),
+      ...postAnalysis1Due.map((item) => ({
+        item,
+        step: 3 as const,
+        type: "post_analysis" as const,
+      })),
     ];
 
     if (allItems.length === 0) {
@@ -42,19 +52,23 @@ export async function POST(request: Request): Promise<NextResponse> {
     let processed = 0;
     let failed = 0;
 
-    for (const { item, step } of allItems) {
+    for (const { item, step, type } of allItems) {
       const lead = leadMap.get(item.leadId);
       if (!lead) {
         failed += 1;
         continue;
       }
 
-      const result = await processFollowUp(item, lead, step);
+      const result =
+        type === "post_analysis"
+          ? await processPostAnalysisFollowUp(item, lead, step as 2 | 3)
+          : await processFollowUp(item, lead, step as 1 | 2);
+
       if (result.success) {
         processed += 1;
       } else {
         failed += 1;
-        logger.warn("Follow-up falhou", { leadId: item.leadId, step, error: result.error });
+        logger.warn("Follow-up falhou", { leadId: item.leadId, step, type, error: result.error });
       }
     }
 

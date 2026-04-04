@@ -94,6 +94,43 @@ export function generateGmnFollowUpMessage(lead: Pick<LeadRecord, "company">, st
   ].join("\n");
 }
 
+/**
+ * Mensagens pós-envio da análise GBP Check.
+ * Objetivo: forçar resposta e conduzir para reunião.
+ */
+export function generatePostAnalysisMessage(
+  lead: Pick<LeadRecord, "company">,
+  step: 1 | 2 | 3
+): string {
+  if (step === 1) {
+    return [
+      `Oi, ${lead.company}!`,
+      "",
+      "Acabei de te mandar a análise do seu perfil no Google.",
+      "",
+      "Tem alguns pontos que seus concorrentes já estão aproveitando e que estão te fazendo perder clientes agora — dá uma olhada e me fala o que achou. 👆",
+    ].join("\n");
+  }
+
+  if (step === 2) {
+    return [
+      `${lead.company}, vi que você ainda não abriu a análise.`,
+      "",
+      "Só te adianto: identifiquei pelo menos 3 áreas onde você está perdendo visibilidade para concorrentes da sua região no Google. São ajustes simples, mas que fazem diferença direta no número de clientes que chegam até você.",
+      "",
+      "Vale a pena dar uma olhada. 😉",
+    ].join("\n");
+  }
+
+  return [
+    "Oi! Última vez que passo por aqui.",
+    "",
+    "Preparei essa análise especificamente pro seu negócio — não é algo genérico. Se quiser entender como virar o jogo no Google antes dos seus concorrentes, é só me responder e a gente marca 15 minutinhos.",
+    "",
+    "Sem compromisso. 🤝",
+  ].join("\n");
+}
+
 export function buildGbpCheckUrl(companyName: string, region?: string): string {
   const query = region
     ? `${companyName} ${region} google meu negócio`
