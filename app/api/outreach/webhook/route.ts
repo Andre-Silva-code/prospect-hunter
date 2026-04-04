@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { updateQueueItem } from "@/lib/outreach-queue";
 import { updateLeadRecord, getLeadById } from "@/lib/leads-repository";
-import { sendGbpCheckReport } from "@/lib/outreach-orchestrator";
+import { sendTextMessage } from "@/lib/connectors/uazapi";
 import { logger } from "@/lib/logger";
 
 type UazapiWebhookPayload = {
@@ -52,25 +52,22 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     logger.info("Lead marked as replied", { leadId: matchingItem.leadId });
 
-    // Gerar e enviar relatório GBP Check (fire-and-forget)
-    if (!matchingItem.pdfGenerated) {
-      const lead = await getLeadById(matchingItem.userId, matchingItem.leadId);
-      if (lead) {
-        logger.info("Gerando relatório GBP Check para lead", { company: lead.company });
-        sendGbpCheckReport(matchingItem, lead)
-          .then((result) => {
-            if (result.success) {
-              logger.info("Relatório GBP Check enviado", { company: lead.company });
-            } else {
-              logger.error("Falha ao enviar relatório GBP Check", { error: result.error });
-            }
-          })
-          .catch((err) => {
-            logger.error("Erro ao gerar relatório GBP Check", {
-              error: err instanceof Error ? err.message : "unknown",
-            });
-          });
-      }
+    const lead = await getLeadById(matchingItem.userId, matchingItem.leadId);
+
+    // Confirmar ao lead que o relatório está sendo preparado
+    sendTextMessage(
+      senderJid,
+      `Ótimo! Vou preparar a análise do perfil da ${lead?.company ?? "sua empresa"} no Google e envio em breve. Aguarde!`
+    ).catch(() => {});
+
+    // Notificar o dono do sistema para gerar e enviar o PDF
+    const ownerPhone = process.env.OWNER_PHONE;
+    if (ownerPhone) {
+      const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
+      sendTextMessage(
+        ownerJid,
+        `🔔 Lead respondeu!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nAcesse o CRM → aba "Pipeline" → card em "Diagnóstico" → clique em "Enviar Relatório GBP Check".`
+      ).catch(() => {});
     }
 
     return NextResponse.json({ status: "processed", leadId: matchingItem.leadId });

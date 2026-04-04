@@ -278,6 +278,8 @@ export type UseLeadsReturn = {
   expandedMessageLeadId: string | null;
   setExpandedMessageLeadId: React.Dispatch<React.SetStateAction<string | null>>;
   copyFeedbackLeadId: string | null;
+  sendGbpReport: (leadId: string) => Promise<void>;
+  gbpReportSendingLeadId: string | null;
 };
 
 export function useLeads(userId: string): UseLeadsReturn {
@@ -289,6 +291,7 @@ export function useLeads(userId: string): UseLeadsReturn {
   const [selectedSources, setSelectedSources] = React.useState<LeadSource[]>([defaultSource]);
   const [expandedMessageLeadId, setExpandedMessageLeadId] = React.useState<string | null>(null);
   const [copyFeedbackLeadId, setCopyFeedbackLeadId] = React.useState<string | null>(null);
+  const [gbpReportSendingLeadId, setGbpReportSendingLeadId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -473,6 +476,25 @@ export function useLeads(userId: string): UseLeadsReturn {
     });
   };
 
+  const sendGbpReport = async (leadId: string): Promise<void> => {
+    setGbpReportSendingLeadId(leadId);
+    try {
+      const res = await fetch("/api/outreach/send-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        alert(`Erro ao enviar relatório: ${data.error ?? "Tente novamente."}`);
+      }
+    } catch {
+      alert("Erro de conexão ao gerar relatório.");
+    } finally {
+      setGbpReportSendingLeadId(null);
+    }
+  };
+
   const copyMessage = async (leadId: string, message: string): Promise<void> => {
     if (!navigator.clipboard) return;
     await navigator.clipboard.writeText(message);
@@ -511,5 +533,7 @@ export function useLeads(userId: string): UseLeadsReturn {
     expandedMessageLeadId,
     setExpandedMessageLeadId,
     copyFeedbackLeadId,
+    sendGbpReport,
+    gbpReportSendingLeadId,
   };
 }

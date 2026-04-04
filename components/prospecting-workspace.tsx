@@ -53,6 +53,8 @@ export function ProspectingWorkspace({
           copyMessage={hook.copyMessage}
           registerFollowUp={hook.registerFollowUp}
           updateContactStatus={hook.updateContactStatus}
+          sendGbpReport={hook.sendGbpReport}
+          gbpReportSendingLeadId={hook.gbpReportSendingLeadId}
         />
       </div>
     </section>

@@ -35,6 +35,8 @@ type PipelineBoardProps = {
   copyMessage: (leadId: string, message: string) => Promise<void>;
   registerFollowUp: (leadId: string) => void;
   updateContactStatus: (leadId: string, contactStatus: "Mensagem enviada" | "Respondeu") => void;
+  sendGbpReport: (leadId: string) => Promise<void>;
+  gbpReportSendingLeadId: string | null;
 };
 
 export function PipelineBoard({
@@ -48,6 +50,8 @@ export function PipelineBoard({
   copyMessage,
   registerFollowUp,
   updateContactStatus,
+  sendGbpReport,
+  gbpReportSendingLeadId,
 }: PipelineBoardProps): React.ReactElement {
   return (
     <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
@@ -83,6 +87,7 @@ export function PipelineBoard({
                   lead={lead}
                   isMessageExpanded={expandedMessageLeadId === lead.id}
                   isCopyFeedback={copyFeedbackLeadId === lead.id}
+                  isSendingGbpReport={gbpReportSendingLeadId === lead.id}
                   onToggleMessage={() =>
                     setExpandedMessageLeadId((currentId) =>
                       currentId === lead.id ? null : lead.id
@@ -94,6 +99,7 @@ export function PipelineBoard({
                   onCopyMessage={() => void copyMessage(lead.id, lead.message)}
                   onRegisterFollowUp={() => registerFollowUp(lead.id)}
                   onUpdateContactStatus={(status) => updateContactStatus(lead.id, status)}
+                  onSendGbpReport={() => void sendGbpReport(lead.id)}
                 />
               ))}
             </div>
@@ -108,6 +114,7 @@ function LeadCard({
   lead,
   isMessageExpanded,
   isCopyFeedback,
+  isSendingGbpReport,
   onToggleMessage,
   onAdvanceStage,
   onCloseLead,
@@ -115,10 +122,12 @@ function LeadCard({
   onCopyMessage,
   onRegisterFollowUp,
   onUpdateContactStatus,
+  onSendGbpReport,
 }: {
   lead: LeadRecord;
   isMessageExpanded: boolean;
   isCopyFeedback: boolean;
+  isSendingGbpReport: boolean;
   onToggleMessage: () => void;
   onAdvanceStage: () => void;
   onCloseLead: (stage: "Fechado" | "Perdido") => void;
@@ -126,6 +135,7 @@ function LeadCard({
   onCopyMessage: () => void;
   onRegisterFollowUp: () => void;
   onUpdateContactStatus: (status: "Mensagem enviada" | "Respondeu") => void;
+  onSendGbpReport: () => void;
 }): React.ReactElement {
   return (
     <article className="rounded-2xl bg-white p-4 shadow-sm border border-[rgba(35,24,21,0.07)] transition hover:shadow-md">
@@ -195,6 +205,21 @@ function LeadCard({
             className="rounded-xl border border-[rgba(139,90,77,0.22)] bg-[rgba(139,90,77,0.08)] px-3 py-2 text-xs font-semibold text-[#6f4034] transition hover:bg-[rgba(139,90,77,0.14)]"
           >
             Marcar perdido
+          </button>
+        </div>
+      ) : null}
+
+      {lead.stage === "Diagnóstico" && lead.source === "Google Meu Negócio" ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={onSendGbpReport}
+            disabled={isSendingGbpReport}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#2a8a50]/30 bg-[#2a8a50]/5 px-3 py-2.5 text-xs font-semibold text-[#2a8a50] transition hover:bg-[#2a8a50]/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSendingGbpReport
+              ? "Gerando e enviando relatório..."
+              : "📊 Enviar Relatório GBP Check"}
           </button>
         </div>
       ) : null}

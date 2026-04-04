@@ -28,6 +28,22 @@ async function findByJidFile(jid: string): Promise<OutreachQueueItem | null> {
   }
 }
 
+/**
+ * Busca um item na fila de outreach pelo leadId.
+ */
+export async function getOutreachItemByLeadId(
+  userId: string,
+  leadId: string
+): Promise<OutreachQueueItem | null> {
+  try {
+    const raw = await readFile(queueFilePath, "utf8");
+    const items = JSON.parse(raw) as OutreachQueueItem[];
+    return items.find((i) => i.userId === userId && i.leadId === leadId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
