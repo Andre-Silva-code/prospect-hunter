@@ -26,8 +26,11 @@ function extractPhoneFromContact(contact: string): string | null {
   return null;
 }
 
-/** Delay aleatório entre 25-35 minutos (em ms) para parecer orgânico. */
+/** Delay aleatório entre 25-35 minutos (em ms) para parecer orgânico.
+ * Pode ser zerado via OUTREACH_DELAY_MS=0 para testes. */
 function randomDelay(): number {
+  const override = process.env.OUTREACH_DELAY_MS;
+  if (override !== undefined) return Math.max(0, parseInt(override, 10) || 0);
   return (25 + Math.random() * 10) * 60 * 1000;
 }
 
