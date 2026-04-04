@@ -16,12 +16,6 @@ export const SOURCE_CHANNELS: Array<{ id: LeadSource; label: string; desc: strin
       icon: "💼",
     },
     {
-      id: "Google Maps",
-      label: "Google Maps",
-      desc: "Negócios locais com demanda e presença digital validada.",
-      icon: "🌐",
-    },
-    {
       id: "Google Meu Negócio",
       label: "Google Meu Negócio",
       desc: "Empresas com reputação local e intenção de compra clara.",

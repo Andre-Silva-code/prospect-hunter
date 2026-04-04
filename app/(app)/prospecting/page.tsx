@@ -34,7 +34,6 @@ export default function ProspectingPage() {
   const [selectedSources, setSelectedSources] = React.useState<LeadSource[]>([
     "Instagram",
     "LinkedIn",
-    "Google Maps",
     "Google Meu Negócio",
   ]);
   const [niche, setNiche] = React.useState(ICP_OPTIONS[0].niche);
@@ -63,12 +62,7 @@ export default function ProspectingPage() {
     "Infoprodutores locais",
     "Escritorios de advocacia nichados",
   ];
-  const sourceOptions: LeadSource[] = [
-    "Instagram",
-    "LinkedIn",
-    "Google Maps",
-    "Google Meu Negócio",
-  ];
+  const sourceOptions: LeadSource[] = ["Instagram", "LinkedIn", "Google Meu Negócio"];
 
   const [showManualForm, setShowManualForm] = React.useState(false);
   const [manualIcp, setManualIcp] = React.useState<IcpProfile>(defaultIcp);
