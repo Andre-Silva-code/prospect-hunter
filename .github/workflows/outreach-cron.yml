@@ -1,0 +1,50 @@
+name: Outreach Cron
+
+on:
+  schedule:
+    # Roda a cada 5 minutos
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # permite rodar manualmente
+
+jobs:
+  process:
+    name: Processar fila de outreach
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar /api/outreach/process
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ vars.APP_URL }}/api/outreach/process" \
+            -H "Authorization: Bearer ${{ secrets.OUTREACH_CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+
+          echo "Status HTTP: $HTTP_CODE"
+          echo "Resposta: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Outreach process retornou HTTP $HTTP_CODE"
+          fi
+
+  follow_up:
+    name: Processar follow-ups
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar /api/outreach/follow-up
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ vars.APP_URL }}/api/outreach/follow-up" \
+            -H "Authorization: Bearer ${{ secrets.OUTREACH_CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+
+          echo "Status HTTP: $HTTP_CODE"
+          echo "Resposta: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Follow-up retornou HTTP $HTTP_CODE"
+          fi
