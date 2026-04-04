@@ -33,10 +33,27 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     logger.info("Webhook received", { event: payload.event, from: senderJid });
 
-    // Verificar se a mensagem é uma confirmação ("sim" em qualquer capitalização)
+    // Ignorar apenas respostas claramente negativas
     const messageBody = (payload.data?.body ?? "").trim().toLowerCase();
-    if (!messageBody.includes("sim")) {
-      return NextResponse.json({ status: "ignored", reason: "not a confirmation" });
+    const negativePatterns = [
+      /\bnão\b/,
+      /\bnao\b/,
+      /\bn[aã]o quero\b/,
+      /\bnegativo\b/,
+      /\bdispenso\b/,
+      /\bnão preciso\b/,
+      /\bnao preciso\b/,
+      /\bnão tenho interesse\b/,
+      /\bnao tenho interesse\b/,
+      /\bdeixa pra l[aá]\b/,
+      /\bobrigado n[aã]o\b/,
+      /\bn[aã]o obrigado\b/,
+      /\bnope\b/,
+      /^\s*n\s*$/,
+    ];
+    const isNegative = negativePatterns.some((pattern) => pattern.test(messageBody));
+    if (isNegative) {
+      return NextResponse.json({ status: "ignored", reason: "negative response" });
     }
 
     const { listAllOutreachItems } = await import("@/lib/outreach-queue-helpers");
