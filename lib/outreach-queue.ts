@@ -104,7 +104,7 @@ export async function listUserOutreach(userId: string): Promise<OutreachQueueIte
 // --- Storage selection ---
 
 function getStorage(): OutreachStorage {
-  if (process.env.LEADS_STORAGE_PROVIDER === "supabase" && canUseSupabase()) {
+  if (canUseSupabase()) {
     return createSupabaseStorage();
   }
   return createFileStorage();

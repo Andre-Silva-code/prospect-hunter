@@ -61,7 +61,7 @@ export async function updateLeadRecord(
 }
 
 function getLeadStorage(): LeadStorage {
-  if (process.env.LEADS_STORAGE_PROVIDER === "supabase" && canUseSupabaseStorage()) {
+  if (canUseSupabaseStorage()) {
     return createSupabaseStorage();
   }
 

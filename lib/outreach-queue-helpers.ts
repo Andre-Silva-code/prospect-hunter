@@ -10,7 +10,7 @@ const queueFilePath = path.join(process.cwd(), "data", "outreach-queue.json");
  * Retorna o primeiro item com status "sent", "follow_up_1" ou "follow_up_2".
  */
 export async function listAllOutreachItems(whatsappJid: string): Promise<OutreachQueueItem | null> {
-  if (process.env.LEADS_STORAGE_PROVIDER === "supabase") {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
     return findByJidSupabase(whatsappJid);
   }
   return findByJidFile(whatsappJid);
