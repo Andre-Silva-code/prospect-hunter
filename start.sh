@@ -1,4 +1,7 @@
 #!/bin/sh
+# Debug: salvar todas as vars de ambiente disponíveis no container
+env > /app/data/container-env-debug.txt 2>/dev/null || true
+
 # Escreve variáveis de ambiente num arquivo .env para o Next.js standalone ler
 cat > /app/.env << EOF
 SUPABASE_URL=${SUPABASE_URL}
@@ -21,4 +24,4 @@ LEADS_STORAGE_PROVIDER=${LEADS_STORAGE_PROVIDER}
 NODE_ENV=production
 EOF
 
-exec node server.js
+exec node --env-file=/app/.env server.js
