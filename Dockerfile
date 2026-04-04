@@ -29,6 +29,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/start.sh ./start.sh
+COPY --from=builder /app/.env.production ./.env.production
 
 # Pasta de dados persistentes
 RUN mkdir -p /app/data && chmod +x /app/start.sh
