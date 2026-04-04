@@ -33,6 +33,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     logger.info("Webhook received", { event: payload.event, from: senderJid });
 
+    // Verificar se a mensagem é uma confirmação ("sim" em qualquer capitalização)
+    const messageBody = (payload.data?.body ?? "").trim().toLowerCase();
+    if (!messageBody.includes("sim")) {
+      return NextResponse.json({ status: "ignored", reason: "not a confirmation" });
+    }
+
     const { listAllOutreachItems } = await import("@/lib/outreach-queue-helpers");
     const matchingItem = await listAllOutreachItems(senderJid);
 
