@@ -62,7 +62,7 @@ export function generateGmnAuditMessage(
  */
 export function generateGmnWhatsAppMessage(lead: Pick<LeadRecord, "company" | "region">): string {
   return [
-    `Oi, ${lead.company}! 👋`,
+    `Oi, ${lead.company}!`,
     "",
     `Estava analisando perfis no Google Meu Negócio aqui em ${lead.region} e o de vocês chamou minha atenção.`,
     "",
@@ -70,7 +70,7 @@ export function generateGmnWhatsAppMessage(lead: Pick<LeadRecord, "company" | "r
     "",
     "Posso te mostrar o que encontrei? É gratuito e leva 2 minutinhos.",
     "",
-    "Responde SIM que te envio a análise completa! 👇",
+    "Responde SIM que te envio a análise completa!",
   ].join("\n");
 }
 
