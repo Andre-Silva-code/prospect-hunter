@@ -479,17 +479,17 @@ export function useLeads(userId: string): UseLeadsReturn {
   const sendGbpReport = async (leadId: string): Promise<void> => {
     setGbpReportSendingLeadId(leadId);
     try {
-      const res = await fetch("/api/outreach/send-report", {
+      const res = await fetch("/api/outreach/mark-report-sent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        alert(`Erro ao enviar relatório: ${data.error ?? "Tente novamente."}`);
+        alert(`Erro: ${data.error ?? "Tente novamente."}`);
       }
     } catch {
-      alert("Erro de conexão ao gerar relatório.");
+      alert("Erro de conexão.");
     } finally {
       setGbpReportSendingLeadId(null);
     }

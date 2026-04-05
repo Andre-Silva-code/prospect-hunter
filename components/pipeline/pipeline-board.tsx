@@ -218,8 +218,8 @@ function LeadCard({
             className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#2a8a50]/30 bg-[#2a8a50]/5 px-3 py-2.5 text-xs font-semibold text-[#2a8a50] transition hover:bg-[#2a8a50]/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSendingGbpReport
-              ? "Gerando e enviando relatório..."
-              : "📊 Enviar Relatório GBP Check"}
+              ? "Enviando mensagem de acompanhamento..."
+              : "✅ Já enviei o relatório"}
           </button>
         </div>
       ) : null}
