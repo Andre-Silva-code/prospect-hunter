@@ -10,15 +10,6 @@ import {
   sleep,
 } from "./utils";
 
-/** Converte texto em hashtag: remove acentos, espaços e caracteres especiais */
-function toHashtag(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
-
 export function buildApifyInput(
   source: LeadSource,
   request: ProspectSearchRequest
@@ -26,24 +17,16 @@ export function buildApifyInput(
   const baseSearch = `${request.niche} ${request.region}`;
 
   if (source === "Instagram") {
-    // apify/instagram-scraper usa directUrls com URLs de hashtag
-    // Ex: "Clínica Estética" + "RJ" → /explore/tags/clinicaestetica/ + /explore/tags/clinicaesteticarj/
-    const nicheTag = toHashtag(request.niche);
-    const locationTag = request.city ? toHashtag(request.city) : toHashtag(request.region);
-    const directUrls = [
-      `https://www.instagram.com/explore/tags/${nicheTag}/`,
-      `https://www.instagram.com/explore/tags/${nicheTag}${locationTag}/`,
-    ];
-
+    // Busca perfis do Instagram via Google Search (não requer proxy/auth do Instagram)
+    // Ex: site:instagram.com "clínica estética" "Rio de Janeiro"
+    const location = request.city ?? request.region;
+    const query = `site:instagram.com "${request.niche}" "${location}"`;
     return {
-      directUrls,
-      resultsType: "posts",
-      resultsLimit: request.limitPerSource * 4,
-      maxRequestRetries: 3,
-      proxy: {
-        useApifyProxy: true,
-        apifyProxyGroups: ["RESIDENTIAL"],
-      },
+      queries: query,
+      resultsPerPage: request.limitPerSource,
+      maxPagesPerQuery: 1,
+      languageCode: "pt",
+      countryCode: "br",
     };
   }
 
@@ -82,9 +65,10 @@ export async function searchApifyConnector(
     source === "Instagram"
       ? process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID
       : process.env.PROSPECT_APIFY_LINKEDIN_TASK_ID;
+  // Instagram usa Google Search Scraper para encontrar perfis sem precisar de proxy/auth
   const actorId =
     source === "Instagram"
-      ? process.env.PROSPECT_APIFY_INSTAGRAM_ACTOR_ID
+      ? (process.env.PROSPECT_APIFY_INSTAGRAM_ACTOR_ID ?? "apify~google-search-scraper")
       : process.env.PROSPECT_APIFY_LINKEDIN_ACTOR_ID;
 
   if (!taskId && !actorId) return { results: [], status: "Sem conector configurado" };

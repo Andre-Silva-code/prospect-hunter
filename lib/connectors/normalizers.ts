@@ -46,6 +46,12 @@ export function normalizeConnectorItem(
   };
 }
 
+/** Extrai username do Instagram a partir de uma URL do perfil */
+function extractInstagramUsername(url: string): string | null {
+  const match = /instagram\.com\/([A-Za-z0-9_.]+)\/?/.exec(url);
+  return match?.[1] ?? null;
+}
+
 export function normalizeApifyItem(
   value: unknown,
   source: LeadSource,
@@ -55,6 +61,40 @@ export function normalizeApifyItem(
   if (!value || typeof value !== "object") return null;
 
   const item = value as Record<string, unknown>;
+
+  // Instagram via Google Search: campos são title, url, description
+  if (source === "Instagram") {
+    const url = pickFirstString(item, ["url", "link", "displayLink"]) ?? "";
+    const username = extractInstagramUsername(url);
+    if (!username) return null;
+
+    const rawTitle = pickFirstString(item, ["title"]) ?? username;
+    // Título do Google: "Nome da Conta (@username) • Instagram"
+    const company =
+      rawTitle
+        .replace(/\s*\(@?[^)]+\).*$/, "")
+        .replace(/\s*•.*$/, "")
+        .trim() || username;
+    const trigger =
+      pickFirstString(item, ["description", "snippet", "snip"]) ??
+      `Perfil encontrado via Instagram.`;
+
+    return {
+      id: `Instagram-${index}-${username}`,
+      company,
+      niche: request.niche,
+      region: request.city ?? request.region,
+      monthlyBudget: estimateBudget(65),
+      score: 65,
+      priority: "Media",
+      trigger,
+      source,
+      icp: request.icp,
+      contact: `@${username}`,
+      sourceUrl: `https://www.instagram.com/${username}/`,
+    };
+  }
+
   const companyCandidate =
     pickFirstString(item, [
       "companyName",
@@ -95,19 +135,14 @@ export function normalizeApifyItem(
     pickFirstString(item, ["biography", "bio", "description", "about", "headline", "caption"]) ??
     `Lead encontrado via ${source} no Apify.`;
 
-  // Instagram: monta URL do perfil a partir do username
-  const igUsername = pickFirstString(item, ["username", "ownerUsername"]);
-  const sourceUrl =
-    source === "Instagram" && igUsername
-      ? `https://www.instagram.com/${igUsername}/`
-      : pickFirstString(item, [
-          "url",
-          "profileUrl",
-          "linkedinUrl",
-          "instagramUrl",
-          "googleMapsUrl",
-          "inputUrl",
-        ]);
+  const sourceUrl = pickFirstString(item, [
+    "url",
+    "profileUrl",
+    "linkedinUrl",
+    "instagramUrl",
+    "googleMapsUrl",
+    "inputUrl",
+  ]);
 
   const followers = pickFirstNumber(item, ["followers", "followersCount", "followerCount"]);
   const reviews = pickFirstNumber(item, ["reviewsCount", "userRatingCount", "ratingsCount"]);
