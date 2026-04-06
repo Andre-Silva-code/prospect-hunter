@@ -92,23 +92,18 @@ export async function searchApifyGoogleConnector(
   return runAndNormalize(taskId, actorId, token, source, request);
 }
 
-/** Remove posts duplicados do mesmo perfil — mantém o primeiro por ownerUsername */
-function deduplicateByUsername(items: unknown[]): unknown[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    if (!item || typeof item !== "object") return false;
+/** Extrai os resultados orgânicos de cada página retornada pelo google-search-scraper */
+function expandGoogleSearchResults(items: unknown[]): unknown[] {
+  const results: unknown[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
     const record = item as Record<string, unknown>;
-    const username =
-      typeof record.ownerUsername === "string"
-        ? record.ownerUsername
-        : typeof record.username === "string"
-          ? record.username
-          : null;
-    if (!username) return true;
-    if (seen.has(username)) return false;
-    seen.add(username);
-    return true;
-  });
+    const organic = record.organicResults;
+    if (Array.isArray(organic)) {
+      results.push(...organic);
+    }
+  }
+  return results;
 }
 
 async function runAndNormalize(
@@ -126,11 +121,11 @@ async function runAndNormalize(
     return { results: [], status: `Apify dataset erro: ${datasetError}` };
   }
 
-  // Para Instagram (hashtag): deduplica por ownerUsername antes de normalizar
-  const deduplicatedPayload =
-    source === "Instagram" ? deduplicateByUsername(datasetPayload) : datasetPayload;
+  // Instagram via Google Search: resultados ficam em organicResults[] dentro de cada item
+  const flatPayload =
+    source === "Instagram" ? expandGoogleSearchResults(datasetPayload) : datasetPayload;
 
-  const results = deduplicatedPayload
+  const results = flatPayload
     .map((item, index) => normalizeApifyItem(item, source, request, index))
     .filter((item): item is ProspectSearchResult => item !== null)
     .slice(0, request.limitPerSource);
