@@ -17,18 +17,15 @@ export function buildApifyInput(
   const baseSearch = `${request.niche} ${request.region}`;
 
   if (source === "Instagram") {
-    const businessQuery = `${request.niche} ${request.region}`;
+    // Busca por perfis usando niche + cidade (ou estado como fallback)
+    const location = request.city ?? request.region;
+    const searchQuery = `${request.niche} ${location}`;
     return {
-      search: businessQuery,
-      searchQuery: businessQuery,
-      query: businessQuery,
-      searchStringsArray: [businessQuery, `${request.niche} empresa ${request.region}`],
       searchType: "user",
-      maxItems: request.limitPerSource,
+      search: searchQuery,
+      searchLimit: request.limitPerSource,
       resultsLimit: request.limitPerSource,
-      limit: request.limitPerSource,
-      includeRelatedProfiles: false,
-      onlyBusinessAccounts: true,
+      addParentData: false,
     };
   }
 

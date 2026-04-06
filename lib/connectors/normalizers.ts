@@ -79,27 +79,35 @@ export function normalizeApifyItem(
 
   const niche = pickFirstString(item, ["industry", "category", "niche"]) ?? request.niche;
   const region = extractRegionFromApifyItem(item, request.region);
-  const contact =
-    pickFirstString(item, [
-      "email",
-      "phone",
-      "website",
-      "websiteUrl",
-      "url",
-      "profileUrl",
-      "ownerUsername",
-    ]) ?? "Sem contato publico";
+  // Instagram: prioriza telefone/email de negócio, depois site, depois username
+  const contactParts: string[] = [];
+  const businessPhone = pickFirstString(item, ["businessPhoneNumber", "phone", "phoneNumber"]);
+  const businessEmail = pickFirstString(item, ["businessEmail", "email", "publicEmail"]);
+  const website = pickFirstString(item, ["externalUrl", "website", "websiteUrl", "externalUrls"]);
+  const username = pickFirstString(item, ["username", "ownerUsername", "handle"]);
+  if (businessPhone) contactParts.push(businessPhone);
+  if (businessEmail) contactParts.push(businessEmail);
+  if (website) contactParts.push(website);
+  if (contactParts.length === 0 && username) contactParts.push(`@${username}`);
+  const contact = contactParts.length > 0 ? contactParts.join(" | ") : "Sem contato publico";
+
   const trigger =
-    pickFirstString(item, ["bio", "description", "about", "headline", "caption"]) ??
+    pickFirstString(item, ["biography", "bio", "description", "about", "headline", "caption"]) ??
     `Lead encontrado via ${source} no Apify.`;
-  const sourceUrl = pickFirstString(item, [
-    "url",
-    "profileUrl",
-    "linkedinUrl",
-    "instagramUrl",
-    "googleMapsUrl",
-    "inputUrl",
-  ]);
+
+  // Instagram: monta URL do perfil a partir do username
+  const igUsername = pickFirstString(item, ["username", "ownerUsername"]);
+  const sourceUrl =
+    source === "Instagram" && igUsername
+      ? `https://www.instagram.com/${igUsername}/`
+      : pickFirstString(item, [
+          "url",
+          "profileUrl",
+          "linkedinUrl",
+          "instagramUrl",
+          "googleMapsUrl",
+          "inputUrl",
+        ]);
 
   const followers = pickFirstNumber(item, ["followers", "followersCount", "followerCount"]);
   const reviews = pickFirstNumber(item, ["reviewsCount", "userRatingCount", "ratingsCount"]);
