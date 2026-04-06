@@ -26,16 +26,18 @@ export function buildApifyInput(
   const baseSearch = `${request.niche} ${request.region}`;
 
   if (source === "Instagram") {
-    // Converte nicho e localização em hashtags
-    // Ex: "Clínica Estética" + "Rio de Janeiro" → ["clinicaestetica", "clinicaesteticarj"]
+    // apify/instagram-scraper usa directUrls com URLs de hashtag
+    // Ex: "Clínica Estética" + "RJ" → /explore/tags/clinicaestetica/ + /explore/tags/clinicaesteticarj/
     const nicheTag = toHashtag(request.niche);
     const locationTag = request.city ? toHashtag(request.city) : toHashtag(request.region);
-    const hashtags = [nicheTag, `${nicheTag}${locationTag}`];
+    const directUrls = [
+      `https://www.instagram.com/explore/tags/${nicheTag}/`,
+      `https://www.instagram.com/explore/tags/${nicheTag}${locationTag}/`,
+    ];
 
     return {
-      hashtags,
+      directUrls,
       resultsType: "posts",
-      // Busca mais posts para encontrar perfis únicos suficientes
       resultsLimit: request.limitPerSource * 4,
       maxRequestRetries: 3,
     };
