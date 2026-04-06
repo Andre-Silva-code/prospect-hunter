@@ -125,7 +125,9 @@ export function generatePostAnalysisMessage(
   return [
     "Oi! Última vez que passo por aqui.",
     "",
-    "Preparei essa análise especificamente pro seu negócio — não é algo genérico. Se quiser entender como virar o jogo no Google antes dos seus concorrentes, é só me responder e a gente marca 15 minutinhos.",
+    "Preparei essa análise especificamente pro seu negócio — não é algo genérico. Se quiser entender como virar o jogo no Google antes dos seus concorrentes, é só agendar 15 minutinhos pelo link abaixo:",
+    "",
+    "https://calendar.app.google/vTru5VzoEc1M4q688",
     "",
     "Sem compromisso.",
   ].join("\n");
