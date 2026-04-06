@@ -17,12 +17,12 @@ export function buildApifyInput(
   const baseSearch = `${request.niche} ${request.region}`;
 
   if (source === "Instagram") {
-    // Busca perfis do Instagram via Google Search (não requer proxy/auth do Instagram)
-    // Ex: site:instagram.com "clínica estética" "Rio de Janeiro"
+    // Busca perfis do Instagram via Google Search
+    // Exclui posts (/p/) e reels (/reel/) para retornar só perfis
     const location = request.city ?? request.region;
-    const query = `site:instagram.com "${request.niche}" "${location}"`;
+    const query = `site:instagram.com "${request.niche}" "${location}" -site:instagram.com/p/ -site:instagram.com/reel/`;
     return {
-      queries: query,
+      queries: [query],
       resultsPerPage: request.limitPerSource,
       maxPagesPerQuery: 1,
       languageCode: "pt",
@@ -65,10 +65,9 @@ export async function searchApifyConnector(
     source === "Instagram"
       ? process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID
       : process.env.PROSPECT_APIFY_LINKEDIN_TASK_ID;
-  // Instagram usa Google Search Scraper para encontrar perfis sem precisar de proxy/auth
   const actorId =
     source === "Instagram"
-      ? (process.env.PROSPECT_APIFY_INSTAGRAM_ACTOR_ID ?? "apify~google-search-scraper")
+      ? "apify~google-search-scraper"
       : process.env.PROSPECT_APIFY_LINKEDIN_ACTOR_ID;
 
   if (!taskId && !actorId) return { results: [], status: "Sem conector configurado" };
