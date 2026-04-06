@@ -61,10 +61,8 @@ export async function searchApifyConnector(
   const token = process.env.APIFY_TOKEN;
   if (!token) return { results: [], status: "Sem conector configurado" };
 
-  const taskId =
-    source === "Instagram"
-      ? process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID
-      : process.env.PROSPECT_APIFY_LINKEDIN_TASK_ID;
+  // Instagram sempre usa o actor diretamente (ignora task salva no Apify)
+  const taskId = source === "Instagram" ? undefined : process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID;
   const actorId =
     source === "Instagram"
       ? "apify~google-search-scraper"
