@@ -10,6 +10,15 @@ import {
   sleep,
 } from "./utils";
 
+/** Converte texto em hashtag: remove acentos, espaços e caracteres especiais */
+function toHashtag(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
 export function buildApifyInput(
   source: LeadSource,
   request: ProspectSearchRequest
@@ -17,15 +26,18 @@ export function buildApifyInput(
   const baseSearch = `${request.niche} ${request.region}`;
 
   if (source === "Instagram") {
-    // Busca por perfis usando niche + cidade (ou estado como fallback)
-    const location = request.city ?? request.region;
-    const searchQuery = `${request.niche} ${location}`;
+    // Converte nicho e localização em hashtags
+    // Ex: "Clínica Estética" + "Rio de Janeiro" → ["clinicaestetica", "clinicaesteticarj"]
+    const nicheTag = toHashtag(request.niche);
+    const locationTag = request.city ? toHashtag(request.city) : toHashtag(request.region);
+    const hashtags = [nicheTag, `${nicheTag}${locationTag}`];
+
     return {
-      searchType: "user",
-      search: searchQuery,
-      searchLimit: request.limitPerSource,
-      resultsLimit: request.limitPerSource,
-      addParentData: false,
+      hashtags,
+      resultsType: "posts",
+      // Busca mais posts para encontrar perfis únicos suficientes
+      resultsLimit: request.limitPerSource * 4,
+      maxRequestRetries: 3,
     };
   }
 
@@ -95,6 +107,25 @@ export async function searchApifyGoogleConnector(
   return runAndNormalize(taskId, actorId, token, source, request);
 }
 
+/** Remove posts duplicados do mesmo perfil — mantém o primeiro por ownerUsername */
+function deduplicateByUsername(items: unknown[]): unknown[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const record = item as Record<string, unknown>;
+    const username =
+      typeof record.ownerUsername === "string"
+        ? record.ownerUsername
+        : typeof record.username === "string"
+          ? record.username
+          : null;
+    if (!username) return true;
+    if (seen.has(username)) return false;
+    seen.add(username);
+    return true;
+  });
+}
+
 async function runAndNormalize(
   taskId: string | undefined,
   actorId: string | undefined,
@@ -110,7 +141,11 @@ async function runAndNormalize(
     return { results: [], status: `Apify dataset erro: ${datasetError}` };
   }
 
-  const results = datasetPayload
+  // Para Instagram (hashtag): deduplica por ownerUsername antes de normalizar
+  const deduplicatedPayload =
+    source === "Instagram" ? deduplicateByUsername(datasetPayload) : datasetPayload;
+
+  const results = deduplicatedPayload
     .map((item, index) => normalizeApifyItem(item, source, request, index))
     .filter((item): item is ProspectSearchResult => item !== null)
     .slice(0, request.limitPerSource);

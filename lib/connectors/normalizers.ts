@@ -61,12 +61,12 @@ export function normalizeApifyItem(
       "businessName",
       "name",
       "title",
+      "ownerFullName",
+      "fullName",
       "username",
+      "ownerUsername",
       "handle",
       "pageName",
-      "fullName",
-      "ownerFullName",
-      "ownerUsername",
     ]) ?? "";
 
   const company =
