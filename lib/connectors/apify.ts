@@ -22,11 +22,13 @@ export function buildApifyInput(
     const location = request.city ?? request.region;
     const query = `site:instagram.com "${request.niche}" "${location}" -site:instagram.com/p/ -site:instagram.com/reel/`;
     return {
-      queries: [query],
+      queries: query,
       resultsPerPage: request.limitPerSource,
       maxPagesPerQuery: 1,
       languageCode: "pt",
       countryCode: "br",
+      saveHtml: false,
+      saveHtmlToKeyValueStore: false,
     };
   }
 
