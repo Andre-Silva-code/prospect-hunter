@@ -40,6 +40,10 @@ export function buildApifyInput(
       resultsType: "posts",
       resultsLimit: request.limitPerSource * 4,
       maxRequestRetries: 3,
+      proxy: {
+        useApifyProxy: true,
+        apifyProxyGroups: ["RESIDENTIAL"],
+      },
     };
   }
 
