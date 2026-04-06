@@ -25,11 +25,6 @@ export function buildApifyInput(
       queries: query,
       resultsPerPage: Math.min(request.limitPerSource, 10),
       maxPagesPerQuery: 1,
-      languageCode: "pt",
-      countryCode: "br",
-      saveHtml: false,
-      saveHtmlToKeyValueStore: false,
-      proxyConfiguration: { useApifyProxy: true },
     };
   }
 
