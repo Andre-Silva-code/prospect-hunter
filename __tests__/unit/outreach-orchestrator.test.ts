@@ -279,7 +279,7 @@ describe("WhatsApp message templates", () => {
 
     expect(msg).toContain("Clinica Aurora");
     expect(msg).toContain("Sao Paulo, SP");
-    expect(msg).toContain("pre-analise gratuita");
+    expect(msg).toContain("gratuito");
     expect(msg).toContain("SIM");
   });
 

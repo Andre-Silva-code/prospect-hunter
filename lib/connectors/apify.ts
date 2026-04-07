@@ -60,7 +60,7 @@ export async function searchApifyConnector(
   if (!token) return { results: [], status: "Sem conector configurado" };
 
   // Instagram sempre usa o actor diretamente (ignora task salva no Apify)
-  const taskId = source === "Instagram" ? undefined : process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID;
+  const taskId = source === "Instagram" ? undefined : process.env.PROSPECT_APIFY_LINKEDIN_TASK_ID;
   const actorId =
     source === "Instagram"
       ? "apify~google-search-scraper"

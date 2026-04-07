@@ -70,8 +70,18 @@ describe("Prospecting workspace", () => {
     });
   });
 
-  it("creates a lead and advances it through the pipeline", async () => {
-    mockFetch([]);
+  it("renders a lead in the pipeline and advances it through stages", async () => {
+    // O formulário de adicionar lead foi movido para prospecting/page.tsx
+    // O workspace carrega leads via API e os exibe no kanban
+    mockFetch([
+      buildLead({
+        id: "lead-perf",
+        company: "Nova Clinica Performance",
+        priority: "Alta",
+        contactStatus: "Pendente",
+        stage: "Novo",
+      }),
+    ]);
 
     render(
       <ProspectingWorkspace
@@ -82,27 +92,6 @@ describe("Prospecting workspace", () => {
     await waitFor(() => {
       expect(screen.getByText("Leads totais")).toBeInTheDocument();
     });
-
-    fireEvent.change(screen.getByLabelText("Empresa"), {
-      target: { value: "Nova Clinica Performance" },
-    });
-    fireEvent.change(screen.getByLabelText("Nicho"), {
-      target: { value: "Estetica" },
-    });
-    fireEvent.change(screen.getByLabelText("Região"), {
-      target: { value: "Sao Paulo" },
-    });
-    fireEvent.change(screen.getByLabelText("Verba mensal"), {
-      target: { value: "R$ 10k" },
-    });
-    fireEvent.change(screen.getByLabelText("Contato"), {
-      target: { value: "instagram @novaclinica" },
-    });
-    fireEvent.change(screen.getByLabelText("Gatilho de abordagem"), {
-      target: { value: "Anuncios com oferta fraca e sem remarketing." },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /adicionar lead/i }));
 
     const novoColumn = await screen
       .findByRole("heading", { name: "Novo" })

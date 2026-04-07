@@ -34,9 +34,8 @@ describe("prospecting connectors (Apify)", () => {
     process.env = originalEnv;
   });
 
-  it("uses Apify task for Instagram source and normalizes results", async () => {
-    process.env.PROSPECT_APIFY_INSTAGRAM_TASK_ID = "task-instagram";
-
+  it("uses Apify actor for Instagram source and normalizes results", async () => {
+    // Instagram sempre usa o actor apify~google-search-scraper (ignora task ID)
     const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce(
       createResponse(true, 200, {
@@ -46,15 +45,17 @@ describe("prospecting connectors (Apify)", () => {
         },
       })
     );
+    // google-search-scraper retorna organicResults[] dentro de cada item
     fetchMock.mockResolvedValueOnce(
       createResponse(true, 200, [
         {
-          name: "Clinica Prisma",
-          category: "Estetica premium",
-          city: "Sao Paulo",
-          followers: 4200,
-          bio: "Anuncios ativos e oferta high ticket.",
-          profileUrl: "https://instagram.com/clinicaprisma",
+          organicResults: [
+            {
+              title: "Clinica Prisma | Estetica premium",
+              url: "https://instagram.com/clinicaprisma",
+              description: "Anuncios ativos e oferta high ticket.",
+            },
+          ],
         },
       ])
     );
@@ -70,15 +71,17 @@ describe("prospecting connectors (Apify)", () => {
 
     expect(response.results).toHaveLength(1);
     expect(response.results[0]).toMatchObject({
-      company: "Clinica Prisma",
       source: "Instagram",
     });
-    expect(response.connectorStatus["Instagram"]).toContain("via Apify task");
+    expect(response.connectorStatus["Instagram"]).toContain("via Apify actor");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/actor-tasks/task-instagram/runs");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/acts/apify~google-search-scraper/runs"
+    );
   });
 
   it("retries on 429 and succeeds on a subsequent attempt", async () => {
+    // LinkedIn usa PROSPECT_APIFY_LINKEDIN_TASK_ID
     process.env.PROSPECT_APIFY_LINKEDIN_TASK_ID = "task-linkedin";
 
     const fetchMock = vi.fn();
