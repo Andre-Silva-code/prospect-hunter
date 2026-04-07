@@ -41,10 +41,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       })),
     ];
 
-    if (allItems.length === 0) {
-      return NextResponse.json({ processed: 0, message: "Nenhum follow-up pendente" });
-    }
-
     const userIds = [...new Set(allItems.map((i) => i.item.userId))];
     const allLeads: LeadRecord[] = [];
     for (const userId of userIds) {
@@ -152,6 +148,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         failed += 1;
         logger.warn("Reativacao falhou", { leadId: lead.id, error: result.error });
       }
+    }
+
+    if (processed === 0 && failed === 0) {
+      return NextResponse.json({ processed: 0, message: "Nenhum follow-up pendente" });
     }
 
     return NextResponse.json({ processed, failed, total: allItems.length });
