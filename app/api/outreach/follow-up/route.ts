@@ -5,6 +5,7 @@ import { listLeads, listAllLeads, updateLeadRecord } from "@/lib/leads-repositor
 import {
   processFollowUp,
   processPostAnalysisFollowUp,
+  processPostConsultingFollowUp,
   processProposalFollowUp,
   processReactivation,
 } from "@/lib/outreach-orchestrator";
@@ -29,6 +30,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     const pdfSentDue = await getFollowUpDueItems("pdf_sent", 1);
     // Pós-análise 3: receberam mensagem 2 há 2+ dias sem resposta
     const postAnalysis1Due = await getFollowUpDueItems("post_analysis_1", 2);
+    // Pós-consultoria 2: consulting_done há 2+ dias sem resposta
+    const consultingDoneDue = await getFollowUpDueItems("consulting_done", 2);
+    // Pós-consultoria 3: post_consulting_1 há 3+ dias
+    const postConsulting1Due = await getFollowUpDueItems("post_consulting_1", 3);
 
     const allItems = [
       ...sentDue.map((item) => ({ item, step: 1 as const, type: "gmn" as const })),
@@ -38,6 +43,16 @@ export async function POST(request: Request): Promise<NextResponse> {
         item,
         step: 3 as const,
         type: "post_analysis" as const,
+      })),
+      ...consultingDoneDue.map((item) => ({
+        item,
+        step: 2 as const,
+        type: "post_consulting" as const,
+      })),
+      ...postConsulting1Due.map((item) => ({
+        item,
+        step: 3 as const,
+        type: "post_consulting" as const,
       })),
     ];
 
@@ -63,7 +78,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       const result =
         type === "post_analysis"
           ? await processPostAnalysisFollowUp(item, lead, step as 2 | 3)
-          : await processFollowUp(item, lead, step as 1 | 2);
+          : type === "post_consulting"
+            ? await processPostConsultingFollowUp(item, lead, step as 2 | 3)
+            : await processFollowUp(item, lead, step as 1 | 2);
 
       if (result.success) {
         processed += 1;

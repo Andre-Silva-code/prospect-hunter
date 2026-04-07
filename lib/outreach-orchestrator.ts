@@ -13,6 +13,9 @@ import {
   generateGmnWhatsAppMessage,
   generateGmnFollowUpMessage,
   generatePostAnalysisMessage,
+  generateInstagramWhatsAppMessage,
+  generateInstagramFollowUpMessage,
+  generatePostConsultingMessage,
   generateProposalFollowUpMessage,
   generateReactivationMessage,
 } from "@/lib/outreach-message";
@@ -77,6 +80,38 @@ export async function initiateGmnOutreach(
 }
 
 /**
+ * Inicia outreach para leads do Instagram que têm WhatsApp extraído da bio.
+ */
+export async function initiateInstagramOutreach(
+  userId: string,
+  lead: LeadRecord
+): Promise<{ queued: boolean; reason: string }> {
+  if (!isUazapiConfigured()) {
+    return { queued: false, reason: "Uazapi nao configurado" };
+  }
+
+  if (lead.source !== "Instagram") {
+    return { queued: false, reason: "Lead nao e Instagram" };
+  }
+
+  const normalized = extractPhoneFromContact(lead.contact);
+  if (!normalized) {
+    return { queued: false, reason: "Sem WhatsApp extraido da bio" };
+  }
+
+  const minScore = parseInt(process.env.OUTREACH_MIN_SCORE ?? "65", 10);
+  if (lead.score < minScore) {
+    return { queued: false, reason: `Score ${lead.score} abaixo do minimo (${minScore})` };
+  }
+
+  const item = await enqueueOutreach(userId, lead.id, normalized);
+
+  verifyAndSchedule(item).catch(() => {});
+
+  return { queued: true, reason: `Enfileirado Instagram (${item.id})` };
+}
+
+/**
  * Verifica se o número existe no WhatsApp e agenda o envio.
  */
 export async function verifyAndSchedule(item: OutreachQueueItem): Promise<void> {
@@ -122,11 +157,11 @@ export async function processScheduledOutreach(
   }
 
   try {
-    // 1. Gerar mensagem de prospecção (apenas texto, sem PDF)
-    const message = generateGmnWhatsAppMessage({
-      company: lead.company,
-      region: lead.region,
-    });
+    // 1. Gerar mensagem de prospecção — depende da fonte do lead
+    const message =
+      lead.source === "Instagram"
+        ? generateInstagramWhatsAppMessage({ company: lead.company, niche: lead.niche })
+        : generateGmnWhatsAppMessage({ company: lead.company, region: lead.region });
 
     // 2. Enviar texto via WhatsApp
     const sendResult = await sendTextMessage(item.whatsappJid, message);
@@ -249,7 +284,10 @@ export async function processFollowUp(
     return { success: false, error: "JID ausente" };
   }
 
-  const message = generateGmnFollowUpMessage({ company: lead.company }, step);
+  const message =
+    lead.source === "Instagram"
+      ? generateInstagramFollowUpMessage({ company: lead.company }, step)
+      : generateGmnFollowUpMessage({ company: lead.company }, step);
   const sendResult = await sendTextMessage(item.whatsappJid, message);
 
   if (!sendResult.success) {
@@ -304,6 +342,38 @@ export async function processPostAnalysisFollowUp(
  */
 export async function markAsReplied(item: OutreachQueueItem): Promise<void> {
   await updateQueueItem(item.id, { status: "replied" });
+}
+
+/**
+ * Dispara sequência pós-consultoria para leads Instagram.
+ * Chamado pelo endpoint mark-consulting-done (step 1) e pelo cron (steps 2 e 3).
+ */
+export async function processPostConsultingFollowUp(
+  item: OutreachQueueItem,
+  lead: LeadRecord,
+  step: 1 | 2 | 3
+): Promise<{ success: boolean; error: string | null }> {
+  const rateCheck = checkUazapiRateLimit(item.userId);
+  if (!rateCheck.allowed) {
+    return { success: false, error: "Rate limit" };
+  }
+
+  if (!item.whatsappJid) {
+    return { success: false, error: "JID ausente" };
+  }
+
+  const message = generatePostConsultingMessage({ company: lead.company }, step);
+  const sendResult = await sendTextMessage(item.whatsappJid, message);
+
+  if (!sendResult.success) {
+    return { success: false, error: sendResult.error };
+  }
+
+  const nextStatus =
+    step === 1 ? "consulting_done" : step === 2 ? "post_consulting_1" : "post_consulting_2";
+  await updateQueueItem(item.id, { status: nextStatus, messageId: sendResult.messageId });
+
+  return { success: true, error: null };
 }
 
 /**

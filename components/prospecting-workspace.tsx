@@ -51,6 +51,8 @@ export function ProspectingWorkspace({
         updateContactStatus={hook.updateContactStatus}
         sendGbpReport={hook.sendGbpReport}
         gbpReportSendingLeadId={hook.gbpReportSendingLeadId}
+        markConsultingDone={hook.markConsultingDone}
+        consultingDoneLeadId={hook.consultingDoneLeadId}
       />
     </section>
   );

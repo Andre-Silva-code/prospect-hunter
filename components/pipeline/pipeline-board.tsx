@@ -37,6 +37,8 @@ type PipelineBoardProps = {
   updateContactStatus: (leadId: string, contactStatus: "Mensagem enviada" | "Respondeu") => void;
   sendGbpReport: (leadId: string) => Promise<void>;
   gbpReportSendingLeadId: string | null;
+  markConsultingDone: (leadId: string) => Promise<void>;
+  consultingDoneLeadId: string | null;
 };
 
 export function PipelineBoard({
@@ -52,6 +54,8 @@ export function PipelineBoard({
   updateContactStatus,
   sendGbpReport,
   gbpReportSendingLeadId,
+  markConsultingDone,
+  consultingDoneLeadId,
 }: PipelineBoardProps): React.ReactElement {
   return (
     <div className="overflow-x-auto pb-2 -mx-1 px-1">
@@ -113,6 +117,8 @@ export function PipelineBoard({
                     onRegisterFollowUp={() => registerFollowUp(lead.id)}
                     onUpdateContactStatus={(status) => updateContactStatus(lead.id, status)}
                     onSendGbpReport={() => void sendGbpReport(lead.id)}
+                    onMarkConsultingDone={() => void markConsultingDone(lead.id)}
+                    isConsultingDone={consultingDoneLeadId === lead.id}
                   />
                 ))}
               </div>
@@ -137,6 +143,8 @@ function LeadCard({
   onRegisterFollowUp,
   onUpdateContactStatus,
   onSendGbpReport,
+  onMarkConsultingDone,
+  isConsultingDone,
 }: {
   lead: LeadRecord;
   isMessageExpanded: boolean;
@@ -150,6 +158,8 @@ function LeadCard({
   onRegisterFollowUp: () => void;
   onUpdateContactStatus: (status: "Mensagem enviada" | "Respondeu") => void;
   onSendGbpReport: () => void;
+  onMarkConsultingDone: () => void;
+  isConsultingDone: boolean;
 }): React.ReactElement {
   return (
     <article className="rounded-2xl bg-white p-4 shadow-sm border border-[rgba(35,24,21,0.07)] transition hover:shadow-md">
@@ -219,6 +229,39 @@ function LeadCard({
             className="rounded-xl border border-[rgba(139,90,77,0.22)] bg-[rgba(139,90,77,0.08)] px-3 py-2 text-xs font-semibold text-[#6f4034] transition hover:bg-[rgba(139,90,77,0.14)]"
           >
             Marcar perdido
+          </button>
+        </div>
+      ) : null}
+
+      {lead.stage === "Diagnóstico" && lead.source === "Instagram" ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={onMarkConsultingDone}
+            disabled={isConsultingDone}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#5a3a8a]/30 bg-[#5a3a8a]/5 px-3 py-2.5 text-xs font-semibold text-[#7a5aaa] transition hover:bg-[#5a3a8a]/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isConsultingDone ? (
+              "Enviando mensagem pos-consultoria..."
+            ) : (
+              <>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  className="shrink-0"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="8" cy="8" r="7" />
+                  <path d="M5.5 8l1.8 1.8 3-3.5" />
+                </svg>
+                Consultoria feita — iniciar sequencia
+              </>
+            )}
           </button>
         </div>
       ) : null}

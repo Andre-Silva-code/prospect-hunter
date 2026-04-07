@@ -280,6 +280,8 @@ export type UseLeadsReturn = {
   copyFeedbackLeadId: string | null;
   sendGbpReport: (leadId: string) => Promise<void>;
   gbpReportSendingLeadId: string | null;
+  markConsultingDone: (leadId: string) => Promise<void>;
+  consultingDoneLeadId: string | null;
 };
 
 export function useLeads(userId: string): UseLeadsReturn {
@@ -292,6 +294,7 @@ export function useLeads(userId: string): UseLeadsReturn {
   const [expandedMessageLeadId, setExpandedMessageLeadId] = React.useState<string | null>(null);
   const [copyFeedbackLeadId, setCopyFeedbackLeadId] = React.useState<string | null>(null);
   const [gbpReportSendingLeadId, setGbpReportSendingLeadId] = React.useState<string | null>(null);
+  const [consultingDoneLeadId, setConsultingDoneLeadId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -495,6 +498,25 @@ export function useLeads(userId: string): UseLeadsReturn {
     }
   };
 
+  const markConsultingDone = async (leadId: string): Promise<void> => {
+    setConsultingDoneLeadId(leadId);
+    try {
+      const res = await fetch("/api/outreach/mark-consulting-done", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        alert(`Erro: ${data.error ?? "Tente novamente."}`);
+      }
+    } catch {
+      alert("Erro de conexão.");
+    } finally {
+      setConsultingDoneLeadId(null);
+    }
+  };
+
   const copyMessage = async (leadId: string, message: string): Promise<void> => {
     if (!navigator.clipboard) return;
     await navigator.clipboard.writeText(message);
@@ -535,5 +557,7 @@ export function useLeads(userId: string): UseLeadsReturn {
     copyFeedbackLeadId,
     sendGbpReport,
     gbpReportSendingLeadId,
+    markConsultingDone,
+    consultingDoneLeadId,
   };
 }

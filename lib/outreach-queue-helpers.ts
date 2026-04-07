@@ -27,6 +27,9 @@ async function findByJidFile(jid: string): Promise<OutreachQueueItem | null> {
       "pdf_sent",
       "post_analysis_1",
       "post_analysis_2",
+      "consulting_done",
+      "post_consulting_1",
+      "post_consulting_2",
     ];
 
     return items.find((i) => i.whatsappJid === jid && activeStatuses.includes(i.status)) ?? null;
@@ -58,7 +61,7 @@ async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null>
 
   try {
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/outreach_queue?whatsapp_jid=eq.${encodeURIComponent(jid)}&status=in.(sent,follow_up_1,follow_up_2,pdf_sent,post_analysis_1,post_analysis_2)&limit=1`,
+      `${supabaseUrl}/rest/v1/outreach_queue?whatsapp_jid=eq.${encodeURIComponent(jid)}&status=in.(sent,follow_up_1,follow_up_2,pdf_sent,post_analysis_1,post_analysis_2,consulting_done,post_consulting_1,post_consulting_2)&limit=1`,
       {
         headers: {
           apikey: supabaseAnonKey,

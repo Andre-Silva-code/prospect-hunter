@@ -52,6 +52,28 @@ function extractInstagramUsername(url: string): string | null {
   return match?.[1] ?? null;
 }
 
+/**
+ * Tenta extrair número de WhatsApp de textos de bio/descrição do Instagram.
+ * Padrões comuns: "(11) 99999-9999", "wa.me/5511...", "WhatsApp 11999..."
+ */
+function extractWhatsAppFromBio(text: string): string | null {
+  // wa.me link
+  const waMe = /wa\.me\/(\d{10,15})/.exec(text);
+  if (waMe) return waMe[1];
+
+  // Número brasileiro com DDD — vários formatos
+  const brPhone =
+    /(?:WhatsApp|Whats|WA|Fone|Tel|Contato|Zap)?[:\s]*\(?((?:55)?\d{2})\)?\s*9?\d{4}[-.\s]?\d{4}/i.exec(
+      text
+    );
+  if (brPhone) {
+    const raw = brPhone[0].replace(/\D/g, "");
+    if (raw.length >= 10) return raw.startsWith("55") ? raw : `55${raw}`;
+  }
+
+  return null;
+}
+
 export function normalizeApifyItem(
   value: unknown,
   source: LeadSource,
@@ -75,9 +97,13 @@ export function normalizeApifyItem(
         .replace(/\s*\(@?[^)]+\).*$/, "")
         .replace(/\s*•.*$/, "")
         .trim() || username;
-    const trigger =
+    const description =
       pickFirstString(item, ["description", "snippet", "snip"]) ??
       `Perfil encontrado via Instagram.`;
+
+    // Tenta extrair WhatsApp da bio/descrição — se encontrar, contato = número
+    const whatsapp = extractWhatsAppFromBio(description);
+    const contact = whatsapp ?? `@${username}`;
 
     return {
       id: `Instagram-${index}-${username}`,
@@ -87,10 +113,10 @@ export function normalizeApifyItem(
       monthlyBudget: estimateBudget(65),
       score: 65,
       priority: "Media",
-      trigger,
+      trigger: description,
       source,
       icp: request.icp,
-      contact: `@${username}`,
+      contact,
       sourceUrl: `https://www.instagram.com/${username}/`,
     };
   }

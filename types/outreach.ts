@@ -11,6 +11,9 @@ export type OutreachStatus =
   | "pdf_sent"
   | "post_analysis_1"
   | "post_analysis_2"
+  | "consulting_done"
+  | "post_consulting_1"
+  | "post_consulting_2"
   | "failed";
 
 export type OutreachQueueItem = {

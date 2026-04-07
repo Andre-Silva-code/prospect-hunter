@@ -17,6 +17,9 @@ const STATUS_CONFIG: Record<OutreachStatus, { label: string; color: string; bg: 
   pdf_sent: { label: "Análise Enviada", color: "text-sky-700", bg: "bg-sky-50" },
   post_analysis_1: { label: "Pós-análise 1", color: "text-indigo-700", bg: "bg-indigo-50" },
   post_analysis_2: { label: "Pós-análise 2", color: "text-indigo-800", bg: "bg-indigo-100" },
+  consulting_done: { label: "Consultoria feita", color: "text-violet-700", bg: "bg-violet-50" },
+  post_consulting_1: { label: "Pós-consul. 1", color: "text-violet-700", bg: "bg-violet-100" },
+  post_consulting_2: { label: "Pós-consul. 2", color: "text-violet-800", bg: "bg-violet-200" },
   failed: { label: "Falhou", color: "text-red-700", bg: "bg-red-50" },
 };
 

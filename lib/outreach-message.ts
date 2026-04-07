@@ -133,6 +133,93 @@ export function generatePostAnalysisMessage(
   ].join("\n");
 }
 
+// ─── Instagram funnel ────────────────────────────────────────────────────────
+
+/**
+ * Mensagem inicial para leads do Instagram — oferta de consultoria gratuita.
+ */
+export function generateInstagramWhatsAppMessage(
+  lead: Pick<LeadRecord, "company" | "niche">
+): string {
+  return [
+    `Ola, ${lead.company}!`,
+    "",
+    `Vi o perfil de voces no Instagram e fiquei curioso — voces ja investem em trafego pago para atrair clientes no digital?`,
+    "",
+    `Trabalho com gestao de trafego para empresas de ${lead.niche} e tenho visto resultados bem interessantes nesse segmento.`,
+    "",
+    `Posso fazer uma consultoria estrategica gratuita de 20 minutos para mostrar o que poderia funcionar especificamente para o negocio de voces. Sem enrolacao e sem compromisso.`,
+    "",
+    "Topam? E so responder aqui!",
+  ].join("\n");
+}
+
+/**
+ * Follow-ups para leads do Instagram que nao responderam.
+ * step 1 = D+3, step 2 = D+6
+ */
+export function generateInstagramFollowUpMessage(
+  lead: Pick<LeadRecord, "company">,
+  step: 1 | 2
+): string {
+  if (step === 1) {
+    return [
+      `Oi, ${lead.company}! Passando so para ver se receberam minha mensagem anterior.`,
+      "",
+      "Entendo que a rotina e corrida. Se preferirem, posso mandar um audio rapido explicando como a consultoria funciona.",
+      "",
+      "E completamente gratuita e leva so 20 minutos. Vale a pena!",
+    ].join("\n");
+  }
+
+  return [
+    `Ola, ${lead.company}!`,
+    "",
+    "Ultima tentativa por aqui — se nao for o momento certo, tudo bem.",
+    "",
+    "Fica o convite para quando fizer sentido pensar em crescimento digital. E so me chamar!",
+  ].join("\n");
+}
+
+/**
+ * Mensagens pos-consultoria para converter em cliente de trafego pago.
+ * step 1 = imediata, step 2 = D+2, step 3 = D+5
+ */
+export function generatePostConsultingMessage(
+  lead: Pick<LeadRecord, "company">,
+  step: 1 | 2 | 3
+): string {
+  if (step === 1) {
+    return [
+      `Oi, ${lead.company}! Foi muito bom conversar com voces hoje.`,
+      "",
+      "Como combinamos, vou organizar as principais oportunidades que identifiquei e te mando um resumo.",
+      "",
+      "Se quiserem seguir em frente com a gestao de trafego, e so me falar que a gente ja define os proximos passos!",
+    ].join("\n");
+  }
+
+  if (step === 2) {
+    return [
+      `Oi, ${lead.company}! Ficou alguma duvida sobre o que conversamos na consultoria?`,
+      "",
+      "Posso esclarecer qualquer ponto antes de voces tomarem uma decisao. E so perguntar aqui.",
+      "",
+      "O que eu recomendei para voces tem potencial real de trazer resultados em 60 a 90 dias com a estrategia certa.",
+    ].join("\n");
+  }
+
+  return [
+    `${lead.company}, queria deixar um ultimo recado.`,
+    "",
+    "As vagas para novos clientes este mes estao quase todas preenchidas. Se quiserem garantir uma, agora e o melhor momento.",
+    "",
+    "Se preferirem, posso agendar uma conversa rapida para tirar as ultimas duvidas:",
+    "",
+    "https://calendar.app.google/vTru5VzoEc1M4q688",
+  ].join("\n");
+}
+
 /**
  * Follow-up para leads que estão em "Proposta" sem resposta.
  * D+1, D+3, D+7 após entrada na etapa.
