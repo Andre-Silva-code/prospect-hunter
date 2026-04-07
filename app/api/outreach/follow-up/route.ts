@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { getFollowUpDueItems } from "@/lib/outreach-queue";
-import { listLeads } from "@/lib/leads-repository";
-import { processFollowUp, processPostAnalysisFollowUp } from "@/lib/outreach-orchestrator";
+import { getFollowUpDueItems, getQueueItemByLeadId } from "@/lib/outreach-queue";
+import { listLeads, listAllLeads, updateLeadRecord } from "@/lib/leads-repository";
+import {
+  processFollowUp,
+  processPostAnalysisFollowUp,
+  processProposalFollowUp,
+  processReactivation,
+} from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
 
@@ -69,6 +74,83 @@ export async function POST(request: Request): Promise<NextResponse> {
       } else {
         failed += 1;
         logger.warn("Follow-up falhou", { leadId: item.leadId, step, type, error: result.error });
+      }
+    }
+
+    // --- Proposta follow-up (D+1, D+3, D+7) ---
+    const allLeadsForFunnel = await listAllLeads();
+    const now = Date.now();
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    const proposalLeads = allLeadsForFunnel.filter(
+      (l) =>
+        l.stage === "Proposta" &&
+        l.contactStatus !== "Respondeu" &&
+        (l.proposalFollowUpStep ?? 0) < 3 &&
+        l.proposalEnteredAt != null
+    );
+
+    for (const lead of proposalLeads) {
+      const enteredAt = new Date(lead.proposalEnteredAt!).getTime();
+      const step = (lead.proposalFollowUpStep ?? 0) as 0 | 1 | 2 | 3;
+      const elapsed = now - enteredAt;
+
+      const shouldSend =
+        (step === 0 && elapsed >= 1 * DAY_MS) ||
+        (step === 1 && elapsed >= 3 * DAY_MS) ||
+        (step === 2 && elapsed >= 7 * DAY_MS);
+
+      if (!shouldSend) continue;
+
+      const queueItem = await getQueueItemByLeadId(lead.id);
+      const jid = queueItem?.whatsappJid;
+      if (!jid) continue;
+
+      const nextStep = (step + 1) as 1 | 2 | 3;
+      const result = await processProposalFollowUp(lead, jid, nextStep);
+
+      if (result.success) {
+        await updateLeadRecord(lead.userId, lead.id, {
+          proposalFollowUpStep: nextStep,
+          lastContactAt: new Date().toISOString(),
+        });
+        processed += 1;
+        logger.info("Proposal follow-up enviado", { leadId: lead.id, step: nextStep });
+      } else {
+        failed += 1;
+        logger.warn("Proposal follow-up falhou", {
+          leadId: lead.id,
+          step: nextStep,
+          error: result.error,
+        });
+      }
+    }
+
+    // --- Reativação de leads Perdidos (D+30) ---
+    const lostLeads = allLeadsForFunnel.filter(
+      (l) => l.stage === "Perdido" && l.reactivationSentAt == null
+    );
+
+    for (const lead of lostLeads) {
+      const referenceDate = lead.lastContactAt ?? lead.createdAt;
+      const elapsed = now - new Date(referenceDate).getTime();
+      if (elapsed < 30 * DAY_MS) continue;
+
+      const queueItem = await getQueueItemByLeadId(lead.id);
+      const jid = queueItem?.whatsappJid;
+      if (!jid) continue;
+
+      const result = await processReactivation(lead, jid);
+
+      if (result.success) {
+        await updateLeadRecord(lead.userId, lead.id, {
+          reactivationSentAt: new Date().toISOString(),
+        });
+        processed += 1;
+        logger.info("Reativacao enviada", { leadId: lead.id });
+      } else {
+        failed += 1;
+        logger.warn("Reativacao falhou", { leadId: lead.id, error: result.error });
       }
     }
 

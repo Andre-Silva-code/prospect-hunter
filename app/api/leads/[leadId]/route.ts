@@ -21,6 +21,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
+  // Quando o lead entra em Proposta, registrar o timestamp e zerar o step de follow-up
+  if (updates.stage === "Proposta") {
+    updates = {
+      ...updates,
+      proposalEnteredAt: updates.proposalEnteredAt ?? new Date().toISOString(),
+      proposalFollowUpStep: 0,
+    };
+  }
+
   const updatedLead = await updateLeadRecord(sessionUser.id, leadId, updates);
 
   if (!updatedLead) {

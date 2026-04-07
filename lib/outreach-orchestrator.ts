@@ -13,6 +13,8 @@ import {
   generateGmnWhatsAppMessage,
   generateGmnFollowUpMessage,
   generatePostAnalysisMessage,
+  generateProposalFollowUpMessage,
+  generateReactivationMessage,
 } from "@/lib/outreach-message";
 import { checkUazapiRateLimit } from "@/lib/rate-limiter";
 
@@ -52,6 +54,11 @@ export async function initiateGmnOutreach(
 
   if (lead.source !== "Google Meu Negócio") {
     return { queued: false, reason: "Lead nao e GMN" };
+  }
+
+  const minScore = parseInt(process.env.OUTREACH_MIN_SCORE ?? "65", 10);
+  if (lead.score < minScore) {
+    return { queued: false, reason: `Score ${lead.score} abaixo do minimo (${minScore})` };
   }
 
   const normalized = extractPhoneFromContact(lead.contact);
@@ -297,4 +304,50 @@ export async function processPostAnalysisFollowUp(
  */
 export async function markAsReplied(item: OutreachQueueItem): Promise<void> {
   await updateQueueItem(item.id, { status: "replied" });
+}
+
+/**
+ * Envia follow-up para leads em "Proposta" sem resposta.
+ * step 1 = D+1, step 2 = D+3, step 3 = D+7.
+ */
+export async function processProposalFollowUp(
+  lead: LeadRecord,
+  jid: string,
+  step: 1 | 2 | 3
+): Promise<{ success: boolean; error: string | null }> {
+  const rateCheck = checkUazapiRateLimit(lead.userId);
+  if (!rateCheck.allowed) {
+    return { success: false, error: "Rate limit" };
+  }
+
+  const message = generateProposalFollowUpMessage({ company: lead.company }, step);
+  const sendResult = await sendTextMessage(jid, message);
+
+  if (!sendResult.success) {
+    return { success: false, error: sendResult.error };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * Envia mensagem de reativacao para leads "Perdido" apos 30 dias.
+ */
+export async function processReactivation(
+  lead: LeadRecord,
+  jid: string
+): Promise<{ success: boolean; error: string | null }> {
+  const rateCheck = checkUazapiRateLimit(lead.userId);
+  if (!rateCheck.allowed) {
+    return { success: false, error: "Rate limit" };
+  }
+
+  const message = generateReactivationMessage({ company: lead.company });
+  const sendResult = await sendTextMessage(jid, message);
+
+  if (!sendResult.success) {
+    return { success: false, error: sendResult.error };
+  }
+
+  return { success: true, error: null };
 }

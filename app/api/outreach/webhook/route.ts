@@ -78,6 +78,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         contactStatus: "Respondeu",
         stage: "Proposta",
         lastContactAt: new Date().toISOString(),
+        proposalEnteredAt: new Date().toISOString(),
+        proposalFollowUpStep: 0,
       });
 
       logger.info("Lead replied post-analysis", { leadId: matchingItem.leadId });

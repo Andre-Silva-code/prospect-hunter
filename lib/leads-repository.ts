@@ -34,6 +34,9 @@ type SupabaseLeadRow = {
   follow_up_step?: number | null;
   next_follow_up_at?: string | null;
   last_contact_at?: string | null;
+  proposal_entered_at?: string | null;
+  proposal_follow_up_step?: number | null;
+  reactivation_sent_at?: string | null;
 };
 
 const dataDirectory = path.join(process.cwd(), "data");
@@ -58,6 +61,32 @@ export async function updateLeadRecord(
   updates: Partial<LeadRecord>
 ): Promise<LeadRecord | null> {
   return getLeadStorage().updateLeadRecord(userId, leadId, updates);
+}
+
+/** Lista todos os leads de todos os usuários (uso exclusivo do cron/admin). */
+export async function listAllLeads(): Promise<LeadRecord[]> {
+  if (canUseSupabaseStorage()) {
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at`,
+      {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+        cache: "no-store",
+      }
+    );
+    const payload = (await response.json()) as unknown;
+    if (!Array.isArray(payload)) return [];
+    return payload
+      .map((item) => normalizeLeadRecord(item))
+      .filter((lead): lead is LeadRecord => lead !== null);
+  }
+
+  // File adapter: lê diretamente sem filtro de userId
+  return listFileLeads();
 }
 
 function getLeadStorage(): LeadStorage {
@@ -249,6 +278,15 @@ function toSupabaseLeadPatch(updates: Partial<LeadRecord>): Partial<SupabaseLead
   if (typeof updates.lastContactAt === "string" || updates.lastContactAt === null) {
     patch.last_contact_at = updates.lastContactAt;
   }
+  if (typeof updates.proposalEnteredAt === "string" || updates.proposalEnteredAt === null) {
+    patch.proposal_entered_at = updates.proposalEnteredAt;
+  }
+  if (typeof updates.proposalFollowUpStep === "number") {
+    patch.proposal_follow_up_step = updates.proposalFollowUpStep;
+  }
+  if (typeof updates.reactivationSentAt === "string" || updates.reactivationSentAt === null) {
+    patch.reactivation_sent_at = updates.reactivationSentAt;
+  }
 
   return patch;
 }
@@ -345,6 +383,9 @@ function normalizeLeadRecord(value: unknown): LeadRecord | null {
     followUpStep: getNumber(record, "followUpStep", "follow_up_step") ?? 0,
     nextFollowUpAt: getNullableString(record, "nextFollowUpAt", "next_follow_up_at"),
     lastContactAt: getNullableString(record, "lastContactAt", "last_contact_at"),
+    proposalEnteredAt: getNullableString(record, "proposalEnteredAt", "proposal_entered_at"),
+    proposalFollowUpStep: getNumber(record, "proposalFollowUpStep", "proposal_follow_up_step") ?? 0,
+    reactivationSentAt: getNullableString(record, "reactivationSentAt", "reactivation_sent_at"),
   };
 }
 

@@ -28,4 +28,7 @@ export type LeadRecord = LeadFormValues & {
   followUpStep?: number;
   nextFollowUpAt?: string | null;
   lastContactAt?: string | null;
+  proposalEnteredAt?: string | null;
+  proposalFollowUpStep?: number;
+  reactivationSentAt?: string | null;
 };

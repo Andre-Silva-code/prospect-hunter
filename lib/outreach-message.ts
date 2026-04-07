@@ -133,6 +133,58 @@ export function generatePostAnalysisMessage(
   ].join("\n");
 }
 
+/**
+ * Follow-up para leads que estão em "Proposta" sem resposta.
+ * D+1, D+3, D+7 após entrada na etapa.
+ */
+export function generateProposalFollowUpMessage(
+  lead: Pick<LeadRecord, "company">,
+  step: 1 | 2 | 3
+): string {
+  if (step === 1) {
+    return [
+      `Oi, ${lead.company}!`,
+      "",
+      "Vi que voce recebeu nossa proposta. Ficou alguma duvida que eu possa esclarecer?",
+      "",
+      "Estou a disposicao para uma conversa rapida de 15 minutos se quiser entender melhor os resultados que podemos gerar juntos.",
+    ].join("\n");
+  }
+
+  if (step === 2) {
+    return [
+      `Oi! Passando aqui rapidinho, ${lead.company}.`,
+      "",
+      "Sei que a rotina e corrida, mas queria garantir que voce teve a chance de ver nossa proposta.",
+      "",
+      "Se nao for o momento certo agora, sem problema. E so me falar e agendamos para quando fizer mais sentido.",
+    ].join("\n");
+  }
+
+  return [
+    `Ultimo contato por aqui, ${lead.company}.`,
+    "",
+    "Se decidir seguir em frente com trafego pago no futuro, pode contar comigo. Guardo seu contato.",
+    "",
+    "Boa sorte nos resultados!",
+  ].join("\n");
+}
+
+/**
+ * Mensagem de reativacao para leads marcados como "Perdido" apos 30 dias.
+ */
+export function generateReactivationMessage(lead: Pick<LeadRecord, "company">): string {
+  return [
+    `Oi, ${lead.company}! Tudo bem?`,
+    "",
+    "Conversamos ha um tempo atras sobre gestao de trafego pago.",
+    "",
+    "Desde entao tive alguns aprendizados novos com clientes do mesmo segmento que podem ser uteis para voces tambem.",
+    "",
+    "Se estiver no momento de pensar em aquisicao de clientes, posso compartilhar o que tem funcionado. E so responder aqui!",
+  ].join("\n");
+}
+
 export function buildGbpCheckUrl(companyName: string, region?: string): string {
   const query = region
     ? `${companyName} ${region} google meu negócio`
