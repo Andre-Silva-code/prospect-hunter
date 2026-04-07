@@ -54,58 +54,72 @@ export function PipelineBoard({
   gbpReportSendingLeadId,
 }: PipelineBoardProps): React.ReactElement {
   return (
-    <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
-      {pipelineStages.map((stage) => {
-        const cfg = stageConfig[stage];
-        return (
-          <section
-            key={stage}
-            className="rounded-3xl border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] overflow-hidden shadow-sm"
-          >
-            <div
-              className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${cfg.header}`}
+    <div className="overflow-x-auto pb-2 -mx-1 px-1">
+      <div className="flex gap-4 min-w-max">
+        {pipelineStages.map((stage) => {
+          const cfg = stageConfig[stage];
+          return (
+            <section
+              key={stage}
+              className="rounded-3xl border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] overflow-hidden shadow-sm w-[300px] flex-shrink-0"
             >
-              <div className="flex items-center gap-2.5">
-                <span className={`h-2.5 w-2.5 rounded-full ${cfg.dot}`} />
-                <h3 className="text-sm font-semibold text-[#231815]">{stage}</h3>
-              </div>
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${cfg.count}`}>
-                {groupedLeads[stage].length}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-3 p-4">
-              {groupedLeads[stage].length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[rgba(35,24,21,0.10)] px-4 py-5 text-center text-sm text-[#9e8c82]">
-                  Nenhum lead nesta etapa.
+              <div
+                className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${cfg.header}`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className={`h-2.5 w-2.5 rounded-full ${cfg.dot}`} />
+                  <h3 className="text-sm font-semibold text-[#231815]">{stage}</h3>
                 </div>
-              ) : null}
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${cfg.count}`}>
+                  {groupedLeads[stage].length}
+                </span>
+              </div>
 
-              {groupedLeads[stage].map((lead) => (
-                <LeadCard
-                  key={lead.id}
-                  lead={lead}
-                  isMessageExpanded={expandedMessageLeadId === lead.id}
-                  isCopyFeedback={copyFeedbackLeadId === lead.id}
-                  isSendingGbpReport={gbpReportSendingLeadId === lead.id}
-                  onToggleMessage={() =>
-                    setExpandedMessageLeadId((currentId) =>
-                      currentId === lead.id ? null : lead.id
-                    )
-                  }
-                  onAdvanceStage={() => advanceStage(lead.id)}
-                  onCloseLead={(s) => closeLead(lead.id, s)}
-                  onMessageChange={(msg) => handleMessageChange(lead.id, msg)}
-                  onCopyMessage={() => void copyMessage(lead.id, lead.message)}
-                  onRegisterFollowUp={() => registerFollowUp(lead.id)}
-                  onUpdateContactStatus={(status) => updateContactStatus(lead.id, status)}
-                  onSendGbpReport={() => void sendGbpReport(lead.id)}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+              <div className="flex flex-col gap-3 p-4">
+                {groupedLeads[stage].length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[rgba(35,24,21,0.10)] px-4 py-8 text-center">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className="mx-auto mb-2 text-[#c4b4ac]"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="3" />
+                      <path d="M8 12h8M12 8v8" strokeLinecap="round" />
+                    </svg>
+                    <p className="text-sm text-[#b0a099]">Nenhum lead aqui</p>
+                  </div>
+                ) : null}
+
+                {groupedLeads[stage].map((lead) => (
+                  <LeadCard
+                    key={lead.id}
+                    lead={lead}
+                    isMessageExpanded={expandedMessageLeadId === lead.id}
+                    isCopyFeedback={copyFeedbackLeadId === lead.id}
+                    isSendingGbpReport={gbpReportSendingLeadId === lead.id}
+                    onToggleMessage={() =>
+                      setExpandedMessageLeadId((currentId) =>
+                        currentId === lead.id ? null : lead.id
+                      )
+                    }
+                    onAdvanceStage={() => advanceStage(lead.id)}
+                    onCloseLead={(s) => closeLead(lead.id, s)}
+                    onMessageChange={(msg) => handleMessageChange(lead.id, msg)}
+                    onCopyMessage={() => void copyMessage(lead.id, lead.message)}
+                    onRegisterFollowUp={() => registerFollowUp(lead.id)}
+                    onUpdateContactStatus={(status) => updateContactStatus(lead.id, status)}
+                    onSendGbpReport={() => void sendGbpReport(lead.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -217,9 +231,27 @@ function LeadCard({
             disabled={isSendingGbpReport}
             className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#2a8a50]/30 bg-[#2a8a50]/5 px-3 py-2.5 text-xs font-semibold text-[#2a8a50] transition hover:bg-[#2a8a50]/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSendingGbpReport
-              ? "Enviando mensagem de acompanhamento..."
-              : "✅ Já enviei o relatório"}
+            {isSendingGbpReport ? (
+              "Enviando mensagem de acompanhamento..."
+            ) : (
+              <>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  className="shrink-0"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="8" cy="8" r="7" />
+                  <path d="M5.5 8l1.8 1.8 3-3.5" />
+                </svg>
+                Já enviei o relatório
+              </>
+            )}
           </button>
         </div>
       ) : null}

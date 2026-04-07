@@ -8,7 +8,7 @@
   --surface: #fffaf5;
   --ink: #231815;
   --ink-muted: #655248;
-  --ink-faint: #8a7569;
+  --ink-faint: #7a6b62;
   --border: rgba(35, 24, 21, 0.1);
   --dark-panel: #1c1410;
   --green-panel: #243b30;
@@ -59,6 +59,11 @@ a {
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeDown {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
 }
 
 @keyframes pulse-dot {

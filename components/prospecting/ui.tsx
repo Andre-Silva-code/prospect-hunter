@@ -63,14 +63,73 @@ export function CrmProgressBar({ current, total }: { current: number; total: num
 }
 
 export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+  const [exiting, setExiting] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
+    const hide = setTimeout(() => setExiting(true), 2700);
+    const close = setTimeout(onClose, 3000);
+    return () => {
+      clearTimeout(hide);
+      clearTimeout(close);
+    };
   }, [onClose]);
 
+  const isError = /erro|falha|não foi/i.test(message);
+  const isSuccess = /sucesso|adicionado|enviado|copiada|salvo/i.test(message);
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 rounded-2xl bg-[#231815] px-5 py-3 text-sm text-[#f8efe4] shadow-lg animate-[fadeIn_0.2s_ease-out]">
-      {message}
+    <div
+      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#231815] px-5 py-3.5 text-sm text-[#f8efe4] shadow-xl border border-white/10 max-w-sm"
+      style={{
+        animation: exiting ? "fadeDown 0.3s ease forwards" : "fadeUp 0.3s ease both",
+      }}
+    >
+      {isError ? (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="shrink-0 text-red-400"
+        >
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M8 5v3.5M8 11h.01"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      ) : isSuccess ? (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="shrink-0 text-emerald-400"
+        >
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M5.5 8l1.8 1.8 3-3.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="shrink-0 text-[#f6b37d]"
+        >
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M8 5v4M8 11h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      )}
+      <span className="leading-snug">{message}</span>
     </div>
   );
 }

@@ -56,26 +56,67 @@ export default function LoginPage(): React.ReactElement {
           <div className="space-y-4">
             {[
               {
-                icon: "◈",
+                icon: (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                ),
                 label: "Score automático de qualificação",
                 desc: "Verba, maturidade, prova social e urgência",
               },
               {
-                icon: "◉",
+                icon: (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.14 2.18 2 2 0 012.11 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+                  </svg>
+                ),
                 label: "Cadência multicanal estruturada",
                 desc: "Instagram, WhatsApp, cold e-mail e LinkedIn",
               },
               {
-                icon: "◎",
+                icon: (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="7" height="18" rx="1" />
+                    <rect x="14" y="3" width="7" height="10" rx="1" />
+                    <rect x="14" y="17" width="7" height="4" rx="1" />
+                  </svg>
+                ),
                 label: "Pipeline kanban em tempo real",
                 desc: "Do contato até a proposta sem perder nada",
               },
             ].map((f) => (
               <div
                 key={f.label}
-                className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/8"
+                className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/[0.08] transition hover:bg-white/[0.08]"
               >
-                <span className="text-[#f6b37d] text-xl mt-0.5">{f.icon}</span>
+                <span className="text-[#f6b37d] shrink-0 mt-0.5">{f.icon}</span>
                 <div>
                   <p className="text-[#f8efe4] font-semibold text-sm">{f.label}</p>
                   <p className="text-[#a08a80] text-xs mt-0.5">{f.desc}</p>

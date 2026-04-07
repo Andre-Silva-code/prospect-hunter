@@ -39,15 +39,21 @@ function metricsToKpis(metrics: DashboardMetrics): KpiCard[] {
   ];
 }
 
-const fallbackKpis: KpiCard[] = [
-  { label: "Total de leads", value: "—", detail: "Carregando..." },
-  { label: "Taxa de resposta", value: "—", detail: "Carregando..." },
-  { label: "Taxa de conversão", value: "—", detail: "Carregando..." },
-  { label: "Follow-ups pendentes", value: "—", detail: "Carregando..." },
-];
+const fallbackKpis: KpiCard[] = [];
+
+function KpiSkeleton() {
+  return (
+    <div className="rounded-2xl bg-white/[0.06] border border-white/[0.08] p-5 animate-pulse">
+      <div className="h-3 w-24 rounded bg-white/10 mb-3" />
+      <div className="h-7 w-16 rounded bg-white/15 mb-2" />
+      <div className="h-2.5 w-32 rounded bg-white/8" />
+    </div>
+  );
+}
 
 export default function AnalyticsCards() {
   const [kpis, setKpis] = useState<KpiCard[]>(fallbackKpis);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/analytics")
@@ -55,7 +61,10 @@ export default function AnalyticsCards() {
         if (!res.ok) throw new Error("Failed to fetch analytics");
         return res.json() as Promise<DashboardMetrics>;
       })
-      .then((metrics) => setKpis(metricsToKpis(metrics)))
+      .then((metrics) => {
+        setKpis(metricsToKpis(metrics));
+        setLoading(false);
+      })
       .catch(() => {
         setKpis([
           { label: "Total de leads", value: "0", detail: "Nenhum lead cadastrado ainda" },
@@ -63,18 +72,24 @@ export default function AnalyticsCards() {
           { label: "Taxa de conversão", value: "0%", detail: "Nenhum fechamento ainda" },
           { label: "Follow-ups pendentes", value: "0", detail: "Nada agendado" },
         ]);
+        setLoading(false);
       });
   }, []);
 
   return (
     <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {kpis.map((kpi) => (
-        <div key={kpi.label} className="rounded-2xl bg-white/[0.06] border border-white/[0.08] p-5">
-          <p className="text-xs text-[#a08a80] uppercase tracking-wider">{kpi.label}</p>
-          <p className="mt-2 text-2xl font-semibold text-[#f8efe4]">{kpi.value}</p>
-          <p className="mt-1 text-xs text-[#7a6258]">{kpi.detail}</p>
-        </div>
-      ))}
+      {loading
+        ? Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)
+        : kpis.map((kpi) => (
+            <div
+              key={kpi.label}
+              className="rounded-2xl bg-white/[0.06] border border-white/[0.08] p-5 transition hover:bg-white/[0.09]"
+            >
+              <p className="text-xs text-[#a08a80] uppercase tracking-wider">{kpi.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-[#f8efe4]">{kpi.value}</p>
+              <p className="mt-1 text-xs text-[#9a8278]">{kpi.detail}</p>
+            </div>
+          ))}
     </div>
   );
 }
