@@ -107,6 +107,7 @@ describe("UazapiSendResponseSchema", () => {
 
 describe("checkUazapiRateLimit", () => {
   beforeEach(() => {
+    process.env.USE_LOCAL_STORAGE = "true";
     resetAllRateLimits();
   });
 
@@ -114,26 +115,26 @@ describe("checkUazapiRateLimit", () => {
     resetAllRateLimits();
   });
 
-  it("allows first request", () => {
-    const result = checkUazapiRateLimit("user-1");
+  it("allows first request", async () => {
+    const result = await checkUazapiRateLimit("user-1");
     expect(result.allowed).toBe(true);
   });
 
-  it("blocks after exceeding limit", () => {
+  it("blocks after exceeding limit", async () => {
     for (let i = 0; i < 10; i++) {
-      checkUazapiRateLimit("user-2");
+      await checkUazapiRateLimit("user-2");
     }
-    const result = checkUazapiRateLimit("user-2");
+    const result = await checkUazapiRateLimit("user-2");
     expect(result.allowed).toBe(false);
     expect(result.retryAfterMs).toBeGreaterThan(0);
   });
 
-  it("isolates users", () => {
+  it("isolates users", async () => {
     for (let i = 0; i < 10; i++) {
-      checkUazapiRateLimit("user-a");
+      await checkUazapiRateLimit("user-a");
     }
-    const resultA = checkUazapiRateLimit("user-a");
-    const resultB = checkUazapiRateLimit("user-b");
+    const resultA = await checkUazapiRateLimit("user-a");
+    const resultB = await checkUazapiRateLimit("user-b");
     expect(resultA.allowed).toBe(false);
     expect(resultB.allowed).toBe(true);
   });

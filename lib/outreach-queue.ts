@@ -104,10 +104,17 @@ export async function listUserOutreach(userId: string): Promise<OutreachQueueIte
 // --- Storage selection ---
 
 function getStorage(): OutreachStorage {
-  if (canUseSupabase()) {
-    return createSupabaseStorage();
+  if (process.env.USE_LOCAL_STORAGE === "true") {
+    return createFileStorage();
   }
-  return createFileStorage();
+  if (!canUseSupabase()) {
+    throw new Error(
+      "[outreach-queue] Supabase não configurado. " +
+        "Defina SUPABASE_URL e SUPABASE_ANON_KEY no .env, " +
+        "ou USE_LOCAL_STORAGE=true para desenvolvimento local."
+    );
+  }
+  return createSupabaseStorage();
 }
 
 function canUseSupabase(): boolean {

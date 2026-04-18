@@ -42,7 +42,7 @@ export async function POST(
     return NextResponse.json({ error: "Parametros invalidos" }, { status: 400 });
   }
 
-  const rateCheck = checkGeminiRateLimit(sessionUser.id);
+  const rateCheck = await checkGeminiRateLimit(sessionUser.id);
   if (!rateCheck.allowed) {
     logger.warn("Rate limit exceeded for Gemini message generation", {
       userId: sessionUser.id,

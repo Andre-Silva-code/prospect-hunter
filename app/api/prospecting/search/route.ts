@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<
     return NextResponse.json({ error: "Parametros de busca invalidos" }, { status: 400 });
   }
 
-  const rateCheck = checkApifyRateLimit(sessionUser.id);
+  const rateCheck = await checkApifyRateLimit(sessionUser.id);
   if (!rateCheck.allowed) {
     logger.warn("Rate limit exceeded for prospecting search", {
       userId: sessionUser.id,

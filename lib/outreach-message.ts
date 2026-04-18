@@ -58,45 +58,63 @@ export function generateGmnAuditMessage(
 }
 
 /**
- * Mensagem curta para WhatsApp (enviada junto com o PDF teaser).
+ * Mensagem inicial para leads do Google Meu Negócio.
+ *
+ * Princípio Copy Chief: especificidade antes do CTA.
+ * Entrega observação concreta (posição nas buscas) antes de pedir qualquer resposta.
+ * Baixo comprometimento no CTA — o lead decide, não é pressionado.
  */
 export function generateGmnWhatsAppMessage(lead: Pick<LeadRecord, "company" | "region">): string {
   return [
     `Oi, ${lead.company}!`,
     "",
-    `Estava analisando perfis no Google Meu Negócio aqui em ${lead.region} e o de vocês chamou minha atenção.`,
+    `Estava mapeando perfis no Google Meu Negócio em ${lead.region} e o de vocês apareceu — mas com posição abaixo dos principais concorrentes da região nas buscas locais.`,
     "",
-    "Encontrei alguns pontos que estão fazendo vocês perderem posição nas buscas para concorrentes da região.",
+    "Identifiquei 3 lacunas específicas que os primeiros colocados estão explorando e vocês ainda não.",
     "",
-    "Posso te mostrar o que encontrei? É gratuito e leva 2 minutinhos.",
-    "",
-    "Responde SIM que te envio a análise completa!",
+    "Te mando a análise? Leva 2 minutos ler e você decide se faz sentido agir.",
   ].join("\n");
 }
 
 /**
- * Follow-up para leads que não responderam.
+ * Follow-up para leads GMN que não responderam.
+ *
+ * Regra Pedro Valério: follow-up sem novo valor = VETO.
+ * Cada step entrega um dado novo antes de qualquer pergunta.
+ *
+ * step 1 (D+3): novo gatilho — movimento do mercado local.
+ * step 2 (D+6): saída limpa, preserva relacionamento para reativação.
  */
 export function generateGmnFollowUpMessage(lead: Pick<LeadRecord, "company">, step: 1 | 2): string {
   if (step === 1) {
     return [
-      `Oi! Enviei uma analise do perfil da ${lead.company} no Google ha alguns dias.`,
-      "Conseguiram dar uma olhada no relatorio?",
+      `Oi! Só um complemento do que te mandei, ${lead.company}.`,
       "",
-      "Fico a disposicao se quiserem conversar sobre as melhorias. E so responder aqui!",
+      "O mercado local de buscas no Google se move rápido — concorrentes que atualizam a ficha regularmente sobem de posição em semanas.",
+      "",
+      "Se quiser travar a posição antes que isso aconteça, é só me falar. A análise que preparei já aponta exatamente onde agir primeiro.",
     ].join("\n");
   }
 
   return [
-    `Ola, ${lead.company}!`,
-    "So passando pra avisar que a analise do perfil de voces ainda esta disponivel.",
-    "Se fizer sentido no futuro, e so me chamar. Boa semana!",
+    `Oi, ${lead.company}!`,
+    "",
+    "Última passagem por aqui — se o momento não for agora, tudo bem.",
+    "",
+    "Fica o contato para quando fizer sentido pensar em visibilidade no Google. Boa semana!",
   ].join("\n");
 }
 
 /**
  * Mensagens pós-envio da análise GBP Check.
- * Objetivo: forçar resposta e conduzir para reunião.
+ *
+ * Objetivo: gerar resposta e conduzir para reunião.
+ * Princípio: nunca assumir comportamento do lead (não usar "vi que não abriu").
+ * Cada step entrega valor incremental novo.
+ *
+ * step 1 (imediata): confirma envio + destaca o ponto mais urgente.
+ * step 2 (D+1): complemento com prova social implícita.
+ * step 3 (D+3): saída com CTA de agenda — usar só se urgência for real.
  */
 export function generatePostAnalysisMessage(
   lead: Pick<LeadRecord, "company">,
@@ -114,18 +132,18 @@ export function generatePostAnalysisMessage(
 
   if (step === 2) {
     return [
-      `${lead.company}, vi que você ainda não abriu a análise.`,
+      `${lead.company}, só um complemento do que te mandei.`,
       "",
-      "Só te adianto: identifiquei pelo menos 3 áreas onde você está perdendo visibilidade para concorrentes da sua região no Google. São ajustes simples, mas que fazem diferença direta no número de clientes que chegam até você.",
+      "Além das lacunas que identifiquei, tem um ponto específico sobre avaliações recentes que costuma ter impacto rápido — negócios do mesmo segmento que ajustaram esse ponto viram resultado em menos de 30 dias.",
       "",
-      "Vale a pena dar uma olhada.",
+      "Vale uma leitura rápida na análise que enviei.",
     ].join("\n");
   }
 
   return [
-    "Oi! Última vez que passo por aqui.",
+    `Oi, ${lead.company}! Última vez que passo por aqui.`,
     "",
-    "Preparei essa análise especificamente pro seu negócio — não é algo genérico. Se quiser entender como virar o jogo no Google antes dos seus concorrentes, é só agendar 15 minutinhos pelo link abaixo:",
+    "Preparei essa análise especificamente pro seu negócio — não é algo genérico. Se quiser entender como virar o jogo no Google antes dos seus concorrentes, é só agendar 15 minutinhos:",
     "",
     "https://calendar.app.google/vTru5VzoEc1M4q688",
     "",
@@ -136,27 +154,33 @@ export function generatePostAnalysisMessage(
 // ─── Instagram funnel ────────────────────────────────────────────────────────
 
 /**
- * Mensagem inicial para leads do Instagram — oferta de consultoria gratuita.
+ * Mensagem inicial para leads do Instagram.
+ *
+ * Princípio Copy Chief: observação específica antes de qualquer proposta.
+ * Identifica ausência de anúncios como sinal concreto — cria curiosidade sem entregar tudo.
+ * CTA direto, sem apresentação formal ou "sem compromisso" no início.
  */
 export function generateInstagramWhatsAppMessage(
   lead: Pick<LeadRecord, "company" | "niche">
 ): string {
   return [
-    `Ola, ${lead.company}!`,
+    `Oi, ${lead.company}!`,
     "",
-    `Vi o perfil de voces no Instagram e fiquei curioso — voces ja investem em trafego pago para atrair clientes no digital?`,
+    `Vi o perfil de vocês no Instagram — têm uma presença visual boa, mas não estou vendo anúncios rodando.`,
     "",
-    `Trabalho com gestao de trafego para empresas de ${lead.niche} e tenho visto resultados bem interessantes nesse segmento.`,
+    `Trabalho com tráfego pago para empresas de ${lead.niche} e já vi esse padrão em outros negócios do segmento antes de escalar. Geralmente tem uma razão específica.`,
     "",
-    `Posso fazer uma consultoria estrategica gratuita de 20 minutos para mostrar o que poderia funcionar especificamente para o negocio de voces. Sem enrolacao e sem compromisso.`,
-    "",
-    "Topam? E so responder aqui!",
+    "Posso te contar o que encontrei em 20 minutos — sem apresentação, sem venda. Topam?",
   ].join("\n");
 }
 
 /**
- * Follow-ups para leads do Instagram que nao responderam.
- * step 1 = D+3, step 2 = D+6
+ * Follow-ups para leads do Instagram que não responderam.
+ *
+ * Regra Pedro Valério: follow-up sem novo valor = VETO.
+ *
+ * step 1 (D+3): oferece formato diferente (áudio) + reforça baixo custo de tempo.
+ * step 2 (D+6): saída limpa, preserva relacionamento.
  */
 export function generateInstagramFollowUpMessage(
   lead: Pick<LeadRecord, "company">,
@@ -164,26 +188,30 @@ export function generateInstagramFollowUpMessage(
 ): string {
   if (step === 1) {
     return [
-      `Oi, ${lead.company}! Passando so para ver se receberam minha mensagem anterior.`,
+      `Oi, ${lead.company}! Passando para ver se receberam minha mensagem.`,
       "",
-      "Entendo que a rotina e corrida. Se preferirem, posso mandar um audio rapido explicando como a consultoria funciona.",
+      "Entendo que a rotina é corrida. Se preferirem, posso mandar um áudio rápido explicando o que identifiquei — leva menos de 3 minutos ouvir.",
       "",
-      "E completamente gratuita e leva so 20 minutos. Vale a pena!",
+      "A consultoria em si é completamente gratuita e dura 20 minutos. Vale a pena!",
     ].join("\n");
   }
 
   return [
-    `Ola, ${lead.company}!`,
+    `Oi, ${lead.company}!`,
     "",
-    "Ultima tentativa por aqui — se nao for o momento certo, tudo bem.",
+    "Última tentativa por aqui — se não for o momento certo, tudo bem.",
     "",
-    "Fica o convite para quando fizer sentido pensar em crescimento digital. E so me chamar!",
+    "Fica o convite para quando fizer sentido pensar em crescimento digital. É só me chamar!",
   ].join("\n");
 }
 
 /**
- * Mensagens pos-consultoria para converter em cliente de trafego pago.
- * step 1 = imediata, step 2 = D+2, step 3 = D+5
+ * Mensagens pós-consultoria para converter em cliente de tráfego pago.
+ *
+ * step 1 (imediata): confirma próximos passos combinados na call.
+ * step 2 (D+2): abre espaço para dúvidas, reforça prazo realista de resultado.
+ * step 3 (D+5): urgência real — usar SOMENTE se vagas/prazo forem verificáveis.
+ *   Urgência falsa detectada pelo lead destrói toda a sequência anterior.
  */
 export function generatePostConsultingMessage(
   lead: Pick<LeadRecord, "company">,
@@ -191,30 +219,30 @@ export function generatePostConsultingMessage(
 ): string {
   if (step === 1) {
     return [
-      `Oi, ${lead.company}! Foi muito bom conversar com voces hoje.`,
+      `Oi, ${lead.company}! Foi muito bom conversar com vocês hoje.`,
       "",
       "Como combinamos, vou organizar as principais oportunidades que identifiquei e te mando um resumo.",
       "",
-      "Se quiserem seguir em frente com a gestao de trafego, e so me falar que a gente ja define os proximos passos!",
+      "Se quiserem seguir em frente com a gestão de tráfego, é só me falar que a gente já define os próximos passos!",
     ].join("\n");
   }
 
   if (step === 2) {
     return [
-      `Oi, ${lead.company}! Ficou alguma duvida sobre o que conversamos na consultoria?`,
+      `Oi, ${lead.company}! Ficou alguma dúvida sobre o que conversamos na consultoria?`,
       "",
-      "Posso esclarecer qualquer ponto antes de voces tomarem uma decisao. E so perguntar aqui.",
+      "Posso esclarecer qualquer ponto antes de vocês tomarem uma decisão. É só perguntar aqui.",
       "",
-      "O que eu recomendei para voces tem potencial real de trazer resultados em 60 a 90 dias com a estrategia certa.",
+      "O que recomendei tem potencial real de trazer resultados em 60 a 90 dias com a estratégia certa.",
     ].join("\n");
   }
 
   return [
-    `${lead.company}, queria deixar um ultimo recado.`,
+    `${lead.company}, queria deixar um último recado.`,
     "",
-    "As vagas para novos clientes este mes estao quase todas preenchidas. Se quiserem garantir uma, agora e o melhor momento.",
+    "Estou fechando a agenda para novos clientes neste mês. Se quiserem garantir uma vaga, agora é o melhor momento.",
     "",
-    "Se preferirem, posso agendar uma conversa rapida para tirar as ultimas duvidas:",
+    "Se preferirem, posso agendar uma conversa rápida para tirar as últimas dúvidas:",
     "",
     "https://calendar.app.google/vTru5VzoEc1M4q688",
   ].join("\n");
@@ -222,7 +250,10 @@ export function generatePostConsultingMessage(
 
 /**
  * Follow-up para leads que estão em "Proposta" sem resposta.
- * D+1, D+3, D+7 após entrada na etapa.
+ *
+ * step 1 (D+1): abre espaço para dúvidas, CTA de conversa rápida.
+ * step 2 (D+3): reconhece rotina corrida, sem pressão, mantém porta aberta.
+ * step 3 (D+7): saída definitiva com preservação de relacionamento.
  */
 export function generateProposalFollowUpMessage(
   lead: Pick<LeadRecord, "company">,
@@ -232,9 +263,9 @@ export function generateProposalFollowUpMessage(
     return [
       `Oi, ${lead.company}!`,
       "",
-      "Vi que voce recebeu nossa proposta. Ficou alguma duvida que eu possa esclarecer?",
+      "Vi que você recebeu nossa proposta. Ficou alguma dúvida que eu possa esclarecer?",
       "",
-      "Estou a disposicao para uma conversa rapida de 15 minutos se quiser entender melhor os resultados que podemos gerar juntos.",
+      "Estou à disposição para uma conversa rápida de 15 minutos se quiser entender melhor os resultados que podemos gerar juntos.",
     ].join("\n");
   }
 
@@ -242,33 +273,37 @@ export function generateProposalFollowUpMessage(
     return [
       `Oi! Passando aqui rapidinho, ${lead.company}.`,
       "",
-      "Sei que a rotina e corrida, mas queria garantir que voce teve a chance de ver nossa proposta.",
+      "Sei que a rotina é corrida, mas queria garantir que você teve a chance de ver nossa proposta.",
       "",
-      "Se nao for o momento certo agora, sem problema. E so me falar e agendamos para quando fizer mais sentido.",
+      "Se não for o momento certo agora, sem problema. É só me falar e agendamos para quando fizer mais sentido.",
     ].join("\n");
   }
 
   return [
-    `Ultimo contato por aqui, ${lead.company}.`,
+    `Último contato por aqui, ${lead.company}.`,
     "",
-    "Se decidir seguir em frente com trafego pago no futuro, pode contar comigo. Guardo seu contato.",
+    "Se decidir seguir em frente com tráfego pago no futuro, pode contar comigo. Guardo seu contato.",
     "",
     "Boa sorte nos resultados!",
   ].join("\n");
 }
 
 /**
- * Mensagem de reativacao para leads marcados como "Perdido" apos 30 dias.
+ * Mensagem de reativação para leads marcados como "Perdido" após 30 dias.
+ *
+ * Princípio Copy Chief: âncora temporal específica + prova social com contexto.
+ * Evita vagueza ("tive aprendizados novos") — entrega referência concreta ao contato anterior.
+ * CTA leve: não pede reunião, pede abertura para conversa.
  */
 export function generateReactivationMessage(lead: Pick<LeadRecord, "company">): string {
   return [
     `Oi, ${lead.company}! Tudo bem?`,
     "",
-    "Conversamos ha um tempo atras sobre gestao de trafego pago.",
+    "Conversamos há algumas semanas sobre gestão de tráfego pago.",
     "",
-    "Desde entao tive alguns aprendizados novos com clientes do mesmo segmento que podem ser uteis para voces tambem.",
+    "Desde então trabalhei com outros negócios do mesmo segmento aqui na região — alguns resultados bem interessantes que podem ser relevantes para vocês também.",
     "",
-    "Se estiver no momento de pensar em aquisicao de clientes, posso compartilhar o que tem funcionado. E so responder aqui!",
+    "Se estiver pensando em aquisição de clientes nos próximos meses, posso compartilhar o que está funcionando. É só responder aqui!",
   ].join("\n");
 }
 

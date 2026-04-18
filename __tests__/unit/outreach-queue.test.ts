@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 
+// Usa file storage local nos testes (sem Supabase)
+process.env.USE_LOCAL_STORAGE = "true";
+
 import {
   enqueueOutreach,
   getQueueItemByLeadId,

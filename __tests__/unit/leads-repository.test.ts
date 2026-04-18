@@ -3,6 +3,9 @@ import path from "node:path";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
+// Usa file storage local nos testes (sem Supabase)
+process.env.USE_LOCAL_STORAGE = "true";
+
 import { createLead, listLeads, updateLeadRecord } from "@/lib/leads-repository";
 import type { LeadRecord } from "@/types/prospecting";
 

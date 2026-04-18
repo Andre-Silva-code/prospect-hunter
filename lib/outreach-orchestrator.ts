@@ -21,7 +21,21 @@ import {
 } from "@/lib/outreach-message";
 import { checkUazapiRateLimit } from "@/lib/rate-limiter";
 
-const MAX_SEND_ATTEMPTS = 3;
+const MAX_SEND_ATTEMPTS = 4;
+
+/**
+ * Calcula o delay de retry com backoff exponencial.
+ * attemptCount = número de tentativas já realizadas (após a falha).
+ * - 1 falha  → retry em 5 min
+ * - 2 falhas → retry em 15 min
+ * - 3 falhas → retry em 60 min
+ * - 4+ falhas → marcar como failed (não chega aqui)
+ */
+function getRetryDelayMs(attemptCount: number): number {
+  const delays = [5, 15, 60]; // minutos
+  const index = Math.min(attemptCount - 1, delays.length - 1);
+  return (delays[index] ?? 60) * 60 * 1000;
+}
 
 /**
  * Extrai telefone do campo contact (que pode ser "website | phone" ou só phone).
@@ -143,7 +157,7 @@ export async function processScheduledOutreach(
   item: OutreachQueueItem,
   lead: LeadRecord
 ): Promise<{ success: boolean; error: string | null }> {
-  const rateCheck = checkUazapiRateLimit(item.userId);
+  const rateCheck = await checkUazapiRateLimit(item.userId);
   if (!rateCheck.allowed) {
     return {
       success: false,
@@ -179,7 +193,7 @@ export async function processScheduledOutreach(
 
       await updateQueueItem(item.id, {
         status: "scheduled",
-        scheduledAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        scheduledAt: new Date(Date.now() + getRetryDelayMs(attempts)).toISOString(),
         attemptCount: attempts,
         lastError: sendResult.error,
       });
@@ -205,7 +219,7 @@ export async function processScheduledOutreach(
       status: attempts >= MAX_SEND_ATTEMPTS ? "failed" : "scheduled",
       scheduledAt:
         attempts < MAX_SEND_ATTEMPTS
-          ? new Date(Date.now() + 5 * 60 * 1000).toISOString()
+          ? new Date(Date.now() + getRetryDelayMs(attempts)).toISOString()
           : item.scheduledAt,
       attemptCount: attempts,
       lastError: errorMsg,
@@ -275,7 +289,7 @@ export async function processFollowUp(
   lead: LeadRecord,
   step: 1 | 2
 ): Promise<{ success: boolean; error: string | null }> {
-  const rateCheck = checkUazapiRateLimit(item.userId);
+  const rateCheck = await checkUazapiRateLimit(item.userId);
   if (!rateCheck.allowed) {
     return { success: false, error: "Rate limit" };
   }
@@ -312,7 +326,7 @@ export async function processPostAnalysisFollowUp(
   lead: LeadRecord,
   step: 2 | 3
 ): Promise<{ success: boolean; error: string | null }> {
-  const rateCheck = checkUazapiRateLimit(item.userId);
+  const rateCheck = await checkUazapiRateLimit(item.userId);
   if (!rateCheck.allowed) {
     return { success: false, error: "Rate limit" };
   }
@@ -353,7 +367,7 @@ export async function processPostConsultingFollowUp(
   lead: LeadRecord,
   step: 1 | 2 | 3
 ): Promise<{ success: boolean; error: string | null }> {
-  const rateCheck = checkUazapiRateLimit(item.userId);
+  const rateCheck = await checkUazapiRateLimit(item.userId);
   if (!rateCheck.allowed) {
     return { success: false, error: "Rate limit" };
   }
@@ -385,7 +399,7 @@ export async function processProposalFollowUp(
   jid: string,
   step: 1 | 2 | 3
 ): Promise<{ success: boolean; error: string | null }> {
-  const rateCheck = checkUazapiRateLimit(lead.userId);
+  const rateCheck = await checkUazapiRateLimit(lead.userId);
   if (!rateCheck.allowed) {
     return { success: false, error: "Rate limit" };
   }
@@ -407,7 +421,7 @@ export async function processReactivation(
   lead: LeadRecord,
   jid: string
 ): Promise<{ success: boolean; error: string | null }> {
-  const rateCheck = checkUazapiRateLimit(lead.userId);
+  const rateCheck = await checkUazapiRateLimit(lead.userId);
   if (!rateCheck.allowed) {
     return { success: false, error: "Rate limit" };
   }
