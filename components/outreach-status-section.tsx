@@ -14,6 +14,11 @@ const STATUS_CONFIG: Record<OutreachStatus, { label: string; color: string; bg: 
   replied: { label: "Respondeu", color: "text-green-700", bg: "bg-green-50" },
   follow_up_1: { label: "Follow-up 1", color: "text-purple-700", bg: "bg-purple-50" },
   follow_up_2: { label: "Follow-up 2", color: "text-purple-800", bg: "bg-purple-100" },
+  awaiting_qualification: {
+    label: "Aguardando confirmar",
+    color: "text-yellow-700",
+    bg: "bg-yellow-50",
+  },
   pdf_sent: { label: "Análise Enviada", color: "text-sky-700", bg: "bg-sky-50" },
   post_analysis_1: { label: "Pós-análise 1", color: "text-indigo-700", bg: "bg-indigo-50" },
   post_analysis_2: { label: "Pós-análise 2", color: "text-indigo-800", bg: "bg-indigo-100" },
@@ -45,7 +50,7 @@ const FILTERS: { key: FilterKey; label: string; statuses: OutreachStatus[] }[] =
   {
     key: "sent",
     label: "Enviados",
-    statuses: ["sent", "delivered", "follow_up_1", "follow_up_2"],
+    statuses: ["sent", "delivered", "follow_up_1", "follow_up_2", "awaiting_qualification"],
   },
   { key: "replied", label: "Responderam", statuses: ["replied"] },
   { key: "failed", label: "Falharam", statuses: ["failed", "phone_invalid"] },
