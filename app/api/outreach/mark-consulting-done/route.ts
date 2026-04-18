@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
 import { getQueueItemByLeadId, updateQueueItem } from "@/lib/outreach-queue";
-import { getLeadById } from "@/lib/leads-repository";
+import { getLeadById, updateLeadRecord } from "@/lib/leads-repository";
 import { processPostConsultingFollowUp } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 
@@ -52,6 +52,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 502 });
     }
+
+    // Consultoria concluída — avançar lead para "Proposta"
+    await updateLeadRecord(sessionUser.id, leadId, {
+      stage: "Proposta",
+      proposalEnteredAt: new Date().toISOString(),
+      proposalFollowUpStep: 0,
+      lastContactAt: new Date().toISOString(),
+    });
 
     logger.info("Consultoria marcada como feita", { leadId });
     return NextResponse.json({ success: true, message: "Mensagem pos-consultoria enviada" });

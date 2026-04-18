@@ -8,6 +8,7 @@ import {
   sendTextMessage,
 } from "@/lib/connectors/uazapi";
 import { enqueueOutreach, updateQueueItem } from "@/lib/outreach-queue";
+import { updateLeadRecord } from "@/lib/leads-repository";
 import { captureGbpCheckReport } from "@/lib/pdf/gbpcheck-capture";
 import {
   generateGmnWhatsAppMessage,
@@ -22,6 +23,17 @@ import {
 import { checkUazapiRateLimit } from "@/lib/rate-limiter";
 
 const MAX_SEND_ATTEMPTS = 4;
+
+/**
+ * Notifica o dono do sistema via WhatsApp.
+ * Usa OWNER_PHONE do ambiente. Se não configurado, retorna silenciosamente.
+ */
+export async function notifyOwner(message: string): Promise<void> {
+  const ownerPhone = process.env.OWNER_PHONE;
+  if (!ownerPhone) return;
+  const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
+  sendTextMessage(ownerJid, message).catch(() => {});
+}
 
 /**
  * Calcula o delay de retry com backoff exponencial.
@@ -200,7 +212,7 @@ export async function processScheduledOutreach(
       return { success: false, error: sendResult.error };
     }
 
-    // 3. Sucesso — marcar como enviado (PDF será gerado só quando responder)
+    // 3. Sucesso — marcar como enviado e avançar lead para "Contato"
     await updateQueueItem(item.id, {
       status: "sent",
       sentAt: new Date().toISOString(),
@@ -208,6 +220,12 @@ export async function processScheduledOutreach(
       pdfGenerated: false,
       attemptCount: item.attemptCount + 1,
       lastError: null,
+    });
+
+    await updateLeadRecord(item.userId, item.leadId, {
+      stage: "Contato",
+      contactStatus: "Mensagem enviada",
+      lastContactAt: new Date().toISOString(),
     });
 
     return { success: true, error: null };
@@ -313,6 +331,18 @@ export async function processFollowUp(
     status: nextStatus,
     messageId: sendResult.messageId,
   });
+
+  // Último follow-up esgotado — mover lead para "Perdido" e notificar dono
+  if (step === 2) {
+    await updateLeadRecord(item.userId, item.leadId, {
+      stage: "Perdido",
+      lastContactAt: new Date().toISOString(),
+    });
+
+    await notifyOwner(
+      `⚠️ Lead sem resposta após 2 follow-ups — movido para Perdido.\n\nEmpresa: ${lead.company}\nRegião: ${lead.region}\n\nAcesse o CRM para reativar manualmente se necessário.`
+    );
+  }
 
   return { success: true, error: null };
 }

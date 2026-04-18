@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { updateQueueItem } from "@/lib/outreach-queue";
 import { updateLeadRecord, getLeadById } from "@/lib/leads-repository";
 import { sendTextMessage } from "@/lib/connectors/uazapi";
+import { notifyOwner } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 
 type UazapiWebhookPayload = {
@@ -89,16 +90,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         `Que ótimo, ${lead?.company ?? ""}! Vou entrar em contato para agendarmos uma conversa rápida. Fique de olho! 🤝`
       ).catch(() => {});
 
-      const ownerPhone = process.env.OWNER_PHONE;
-      if (ownerPhone) {
-        const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
-        sendTextMessage(
-          ownerJid,
-          `✅ Lead interessado em reunião!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nEstá aguardando contato para agendar. Acesse o CRM → card em "Reunião".`
-        ).catch(() => {});
-      }
+      await notifyOwner(
+        `✅ Lead interessado em reunião!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nEstá aguardando contato para agendar. Acesse o CRM → card em "Proposta".`
+      );
     } else {
-      // Resposta inicial ao "Responda SIM" — preparar análise
+      // Resposta inicial ao outreach — lead avança para Diagnóstico
       await updateLeadRecord(matchingItem.userId, matchingItem.leadId, {
         contactStatus: "Respondeu",
         stage: "Diagnóstico",
@@ -112,14 +108,9 @@ export async function POST(request: Request): Promise<NextResponse> {
         `Ótimo! Vou preparar a análise do perfil da ${lead?.company ?? "sua empresa"} no Google e envio em breve. Aguarde!`
       ).catch(() => {});
 
-      const ownerPhone = process.env.OWNER_PHONE;
-      if (ownerPhone) {
-        const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
-        sendTextMessage(
-          ownerJid,
-          `🔔 Lead respondeu!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nAcesse o CRM → aba "Pipeline" → card em "Diagnóstico" → clique em "Enviar Relatório GBP Check".`
-        ).catch(() => {});
-      }
+      await notifyOwner(
+        `🔔 Lead respondeu!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nAcesse o CRM → card em "Diagnóstico" → clique em "Enviar Relatório GBP Check".`
+      );
     }
 
     return NextResponse.json({ status: "processed", leadId: matchingItem.leadId });

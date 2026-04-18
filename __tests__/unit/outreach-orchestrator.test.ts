@@ -282,8 +282,8 @@ describe("WhatsApp message templates", () => {
 
     expect(msg).toContain("Clinica Aurora");
     expect(msg).toContain("Sao Paulo, SP");
-    expect(msg).toContain("gratuito");
-    expect(msg).toContain("SIM");
+    expect(msg).toContain("lacunas");
+    expect(msg).toContain("2 minutos");
   });
 
   it("generateGmnFollowUpMessage step 1", async () => {
@@ -291,7 +291,7 @@ describe("WhatsApp message templates", () => {
     const msg = generateGmnFollowUpMessage({ company: "Clinica Aurora" }, 1);
 
     expect(msg).toContain("Clinica Aurora");
-    expect(msg).toContain("ha alguns dias");
+    expect(msg).toContain("complemento");
   });
 
   it("generateGmnFollowUpMessage step 2", async () => {
@@ -299,6 +299,6 @@ describe("WhatsApp message templates", () => {
     const msg = generateGmnFollowUpMessage({ company: "Clinica Aurora" }, 2);
 
     expect(msg).toContain("Clinica Aurora");
-    expect(msg).toContain("ainda esta disponivel");
+    expect(msg).toContain("passagem");
   });
 });
