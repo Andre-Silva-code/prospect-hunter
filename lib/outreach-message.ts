@@ -126,7 +126,13 @@ export function generatePostAnalysisMessage(
       "",
       "Acabei de te mandar a análise do seu perfil no Google.",
       "",
-      "Tem alguns pontos que seus concorrentes já estão aproveitando e que estão te fazendo perder clientes agora — dá uma olhada e me fala o que achou.",
+      "Tem alguns pontos que seus concorrentes já estão aproveitando e que estão te fazendo perder clientes agora — dá uma olhada.",
+      "",
+      "Se quiser entender como corrigir isso na prática, pode agendar 15 minutos comigo direto aqui:",
+      "",
+      "https://calendar.app.google/vTru5VzoEc1M4q688",
+      "",
+      "Sem compromisso.",
     ].join("\n");
   }
 
