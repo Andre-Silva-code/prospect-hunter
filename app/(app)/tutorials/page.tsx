@@ -16,6 +16,12 @@ const TUTORIALS = [
     duration: "5 min",
     level: "Iniciante",
     icon: "🚀",
+    steps: [
+      "Acesse a aba de prospecção e defina nicho, cidade e porte do negócio.",
+      "Use o ICP para filtrar empresas com maior potencial de fechamento.",
+      "Rode a busca nas fontes disponíveis e revise o score sugerido.",
+      "Envie os melhores leads para o CRM para começar o outreach.",
+    ],
   },
   {
     category: "Prospecção",
@@ -24,6 +30,12 @@ const TUTORIALS = [
     duration: "8 min",
     level: "Iniciante",
     icon: "🌐",
+    steps: [
+      "Busque por nicho + cidade (ex.: clínica odontológica em São Paulo).",
+      "Priorize perfis com nota baixa, poucas avaliações ou pouca atividade.",
+      "Confira sinais de oportunidade: site fraco, sem anúncios, baixa prova social.",
+      "Marque os leads de maior aderência ao seu ICP e mova para o CRM.",
+    ],
   },
   {
     category: "Prospecção",
@@ -32,6 +44,12 @@ const TUTORIALS = [
     duration: "10 min",
     level: "Intermediário",
     icon: "📸",
+    steps: [
+      "Filtre perfis com boa oferta, mas baixa consistência de conteúdo.",
+      "Observe bio, destaques, frequência de postagem e qualidade do criativo.",
+      "Registre brechas claras de aquisição para personalizar a mensagem.",
+      "Use o gerador de outreach e ajuste o texto com contexto real do perfil.",
+    ],
   },
   {
     category: "ICP & Score",
@@ -40,6 +58,12 @@ const TUTORIALS = [
     duration: "12 min",
     level: "Intermediário",
     icon: "🎯",
+    steps: [
+      "Defina segmento, ticket médio, maturidade digital e região alvo.",
+      "Liste critérios eliminatórios para reduzir leads de baixo fit.",
+      "Defina critérios de priorização: urgência, potencial de ROI e autoridade.",
+      "Revise semanalmente o ICP com base nas respostas de outreach.",
+    ],
   },
   {
     category: "ICP & Score",
@@ -48,6 +72,12 @@ const TUTORIALS = [
     duration: "6 min",
     level: "Iniciante",
     icon: "📊",
+    steps: [
+      "Use o score como triagem inicial, não como decisão final.",
+      "Cruze score com sinais de dor visíveis no canal analisado.",
+      "Priorize score alto + dor clara + aderência forte ao ICP.",
+      "Ajuste o peso dos critérios quando houver padrão de baixa resposta.",
+    ],
   },
   {
     category: "CRM",
@@ -56,6 +86,26 @@ const TUTORIALS = [
     duration: "15 min",
     level: "Intermediário",
     icon: "📋",
+    steps: [
+      "Crie estágios claros: novo, abordado, respondeu, qualificado e fechado.",
+      "Registre cada interação com data, canal e próxima ação.",
+      "Defina follow-up com prazo para não perder leads quentes.",
+      "Revise o funil diariamente para destravar gargalos de conversão.",
+    ],
+  },
+  {
+    category: "Integrações",
+    title: "Configuração real de fontes (Apify + Google Places)",
+    desc: "Ative as integrações reais para evitar busca sem resultados na operação.",
+    duration: "10 min",
+    level: "Intermediário",
+    icon: "🔌",
+    steps: [
+      "Configure no .env.local: APIFY_TOKEN, task/actor IDs e GOOGLE_MAPS_API_KEY.",
+      "Mantenha PROSPECTING_ENABLE_DEMO_FALLBACK=false para operação real.",
+      "Valide token/task do Apify e teste busca local ponta a ponta.",
+      "Execute npm run check:prospecting-sources para validar conectores.",
+    ],
   },
 ];
 
@@ -97,6 +147,11 @@ export default function TutorialsPage() {
                   {tutorial.title}
                 </h3>
                 <p className="text-sm text-[#655248] leading-relaxed mb-4">{tutorial.desc}</p>
+                <ol className="mb-4 space-y-1.5 text-xs text-[#5f4b40] leading-relaxed list-decimal pl-4">
+                  {tutorial.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
                 <p className="text-xs text-[#a04b2c] font-semibold">
                   ⏱ {tutorial.duration} de leitura
                 </p>
