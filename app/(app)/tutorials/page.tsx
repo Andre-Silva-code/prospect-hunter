@@ -111,9 +111,32 @@ const TUTORIALS = [
   },
 ];
 
+const LEVEL_FILTERS = ["Todos", "Iniciante", "Intermediário"] as const;
+type LevelFilter = (typeof LEVEL_FILTERS)[number];
+
 export default function TutorialsPage() {
-  const categories = [...new Set(TUTORIALS.map((t) => t.category))];
-  const [openTutorial, setOpenTutorial] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("Todos");
+  const [openTutorials, setOpenTutorials] = useState<string[]>([]);
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredTutorials = TUTORIALS.filter((tutorial) => {
+    const matchesLevel = levelFilter === "Todos" || tutorial.level === levelFilter;
+    if (!matchesLevel) return false;
+    if (!normalizedSearch) return true;
+    const searchText = `${tutorial.title} ${tutorial.desc} ${tutorial.category}`.toLowerCase();
+    return searchText.includes(normalizedSearch);
+  });
+  const categories = [...new Set(filteredTutorials.map((t) => t.category))];
+  const visibleTitles = filteredTutorials.map((tutorial) => tutorial.title);
+  const allVisibleExpanded =
+    visibleTitles.length > 0 && visibleTitles.every((title) => openTutorials.includes(title));
+  const toggleAllVisible = () => {
+    if (allVisibleExpanded) {
+      setOpenTutorials((current) => current.filter((title) => !visibleTitles.includes(title)));
+      return;
+    }
+    setOpenTutorials((current) => [...new Set([...current, ...visibleTitles])]);
+  };
 
   return (
     <div className="p-8 space-y-8">
@@ -124,55 +147,97 @@ export default function TutorialsPage() {
           Aprenda a usar o Prospect Hunter para maximizar seus resultados.
         </p>
       </div>
+      <div className="rounded-2xl border border-[rgba(35,24,21,0.08)] bg-white p-4 sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar tutorial por tema..."
+            className="w-full rounded-xl border border-[#e7dbd3] bg-[#fffcfa] px-3.5 py-2.5 text-sm text-[#3b2a22] outline-none focus:border-[#a04b2c]"
+          />
+          <select
+            value={levelFilter}
+            onChange={(event) => setLevelFilter(event.target.value as LevelFilter)}
+            className="rounded-xl border border-[#e7dbd3] bg-[#fffcfa] px-3.5 py-2.5 text-sm text-[#3b2a22] outline-none focus:border-[#a04b2c]"
+          >
+            {LEVEL_FILTERS.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={toggleAllVisible}
+            className="rounded-xl border border-[#d8c4b9] bg-[#fff6f1] px-3.5 py-2.5 text-sm font-semibold text-[#7a4b35] hover:bg-[#feeede]"
+          >
+            {allVisibleExpanded ? "Recolher todos" : "Expandir todos"}
+          </button>
+        </div>
+      </div>
 
       {categories.map((cat) => (
         <div key={cat}>
           <h2 className="text-base font-semibold text-[#231815] mb-4">{cat}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {TUTORIALS.filter((t) => t.category === cat).map((tutorial) => (
-              <button
-                type="button"
-                key={tutorial.title}
-                aria-expanded={openTutorial === tutorial.title}
-                onClick={() =>
-                  setOpenTutorial((current) => (current === tutorial.title ? null : tutorial.title))
-                }
-                className="text-left rounded-2xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-2xl">{tutorial.icon}</span>
-                  <span
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                      tutorial.level === "Iniciante"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                        : "bg-amber-50 text-amber-700 border-amber-100"
-                    }`}
-                  >
-                    {tutorial.level}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-[#231815] mb-2 group-hover:text-[#a04b2c] transition-colors">
-                  {tutorial.title}
-                </h3>
-                <p className="text-sm text-[#655248] leading-relaxed mb-4">{tutorial.desc}</p>
-                <p className="mb-3 inline-flex items-center rounded-lg border border-[#e7dbd3] px-3 py-1.5 text-xs font-semibold text-[#7a4b35]">
-                  {openTutorial === tutorial.title ? "Ocultar instruções" : "Ver instruções"}
-                </p>
-                {openTutorial === tutorial.title && (
-                  <ol className="mb-4 space-y-1.5 text-xs text-[#5f4b40] leading-relaxed list-decimal pl-4">
-                    {tutorial.steps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ol>
-                )}
-                <p className="text-xs text-[#a04b2c] font-semibold">
-                  ⏱ {tutorial.duration} de leitura
-                </p>
-              </button>
-            ))}
+            {filteredTutorials
+              .filter((t) => t.category === cat)
+              .map((tutorial) => (
+                <button
+                  type="button"
+                  key={tutorial.title}
+                  aria-expanded={openTutorials.includes(tutorial.title)}
+                  onClick={() =>
+                    setOpenTutorials((current) =>
+                      current.includes(tutorial.title)
+                        ? current.filter((title) => title !== tutorial.title)
+                        : [...current, tutorial.title]
+                    )
+                  }
+                  className="text-left rounded-2xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="text-2xl">{tutorial.icon}</span>
+                    <span
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                        tutorial.level === "Iniciante"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100"
+                      }`}
+                    >
+                      {tutorial.level}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-[#231815] mb-2 group-hover:text-[#a04b2c] transition-colors">
+                    {tutorial.title}
+                  </h3>
+                  <p className="text-sm text-[#655248] leading-relaxed mb-4">{tutorial.desc}</p>
+                  <p className="mb-3 inline-flex items-center rounded-lg border border-[#e7dbd3] px-3 py-1.5 text-xs font-semibold text-[#7a4b35]">
+                    {openTutorials.includes(tutorial.title)
+                      ? "Ocultar instruções"
+                      : "Ver instruções"}
+                  </p>
+                  {openTutorials.includes(tutorial.title) && (
+                    <ol className="mb-4 space-y-1.5 text-xs text-[#5f4b40] leading-relaxed list-decimal pl-4">
+                      {tutorial.steps.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ol>
+                  )}
+                  <p className="text-xs text-[#a04b2c] font-semibold">
+                    ⏱ {tutorial.duration} de leitura
+                  </p>
+                </button>
+              ))}
           </div>
         </div>
       ))}
+      {filteredTutorials.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-[#d8c4b9] bg-[#fffaf6] p-6 text-sm text-[#7a6258]">
+          Nenhum tutorial encontrado para os filtros atuais.
+        </div>
+      )}
     </div>
   );
 }
