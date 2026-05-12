@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -111,6 +113,7 @@ const TUTORIALS = [
 
 export default function TutorialsPage() {
   const categories = [...new Set(TUTORIALS.map((t) => t.category))];
+  const [openTutorial, setOpenTutorial] = useState<string | null>(null);
 
   return (
     <div className="p-8 space-y-8">
@@ -129,7 +132,7 @@ export default function TutorialsPage() {
             {TUTORIALS.filter((t) => t.category === cat).map((tutorial) => (
               <div
                 key={tutorial.title}
-                className="rounded-2xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                className="rounded-2xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm hover:shadow-md transition-shadow group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <span className="text-2xl">{tutorial.icon}</span>
@@ -147,11 +150,24 @@ export default function TutorialsPage() {
                   {tutorial.title}
                 </h3>
                 <p className="text-sm text-[#655248] leading-relaxed mb-4">{tutorial.desc}</p>
-                <ol className="mb-4 space-y-1.5 text-xs text-[#5f4b40] leading-relaxed list-decimal pl-4">
-                  {tutorial.steps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenTutorial((current) =>
+                      current === tutorial.title ? null : tutorial.title
+                    )
+                  }
+                  className="mb-3 inline-flex items-center rounded-lg border border-[#e7dbd3] px-3 py-1.5 text-xs font-semibold text-[#7a4b35] hover:bg-[#fdf8f4]"
+                >
+                  {openTutorial === tutorial.title ? "Ocultar instruções" : "Ver instruções"}
+                </button>
+                {openTutorial === tutorial.title && (
+                  <ol className="mb-4 space-y-1.5 text-xs text-[#5f4b40] leading-relaxed list-decimal pl-4">
+                    {tutorial.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                )}
                 <p className="text-xs text-[#a04b2c] font-semibold">
                   ⏱ {tutorial.duration} de leitura
                 </p>
