@@ -130,9 +130,14 @@ export default function TutorialsPage() {
           <h2 className="text-base font-semibold text-[#231815] mb-4">{cat}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {TUTORIALS.filter((t) => t.category === cat).map((tutorial) => (
-              <div
+              <button
+                type="button"
                 key={tutorial.title}
-                className="rounded-2xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm hover:shadow-md transition-shadow group"
+                aria-expanded={openTutorial === tutorial.title}
+                onClick={() =>
+                  setOpenTutorial((current) => (current === tutorial.title ? null : tutorial.title))
+                }
+                className="text-left rounded-2xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-4">
                   <span className="text-2xl">{tutorial.icon}</span>
@@ -150,17 +155,9 @@ export default function TutorialsPage() {
                   {tutorial.title}
                 </h3>
                 <p className="text-sm text-[#655248] leading-relaxed mb-4">{tutorial.desc}</p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenTutorial((current) =>
-                      current === tutorial.title ? null : tutorial.title
-                    )
-                  }
-                  className="mb-3 inline-flex items-center rounded-lg border border-[#e7dbd3] px-3 py-1.5 text-xs font-semibold text-[#7a4b35] hover:bg-[#fdf8f4]"
-                >
+                <p className="mb-3 inline-flex items-center rounded-lg border border-[#e7dbd3] px-3 py-1.5 text-xs font-semibold text-[#7a4b35]">
                   {openTutorial === tutorial.title ? "Ocultar instruções" : "Ver instruções"}
-                </button>
+                </p>
                 {openTutorial === tutorial.title && (
                   <ol className="mb-4 space-y-1.5 text-xs text-[#5f4b40] leading-relaxed list-decimal pl-4">
                     {tutorial.steps.map((step) => (
@@ -171,7 +168,7 @@ export default function TutorialsPage() {
                 <p className="text-xs text-[#a04b2c] font-semibold">
                   ⏱ {tutorial.duration} de leitura
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
