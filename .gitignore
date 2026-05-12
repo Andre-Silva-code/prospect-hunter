@@ -43,3 +43,5 @@ data/outreach-queue.json
 gbpcheck-auth.json
 .gbpcheck-browser/
 data/gbpcheck-screenshots/
+
+*.tsbuildinfo

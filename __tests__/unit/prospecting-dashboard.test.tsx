@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProspectingDashboard } from "@/components/prospecting-dashboard";
@@ -21,7 +21,7 @@ describe("Prospecting dashboard", () => {
     );
   });
 
-  it("renders the paid traffic prospecting system content", () => {
+  it("renders the paid traffic prospecting system content", async () => {
     render(
       <ProspectingDashboard
         sessionUser={{ id: "owner", name: "Operador 1", email: "owner@agency.com" }}
@@ -36,5 +36,8 @@ describe("Prospecting dashboard", () => {
     expect(screen.getByText(/clinicas estéticas premium/i)).toBeInTheDocument();
     expect(screen.getByText(/lista de oportunidades/i)).toBeInTheDocument();
     expect(screen.getByText(/oral prime jardins/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
   });
 });
