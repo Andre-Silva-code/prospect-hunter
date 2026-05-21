@@ -42,30 +42,82 @@ const negativePatterns = [
  * não envia mensagem de qualificação.
  */
 const botPatterns = [
+  // Mensagens automáticas explícitas
   /atendimento autom[aá]tico/,
   /mensagem autom[aá]tica/,
   /resposta autom[aá]tica/,
   /bot de atendimento/,
+  /servi[cç]o autom[aá]tico/,
+  /assistente virtual/,
+  /chat ?bot/,
+  /robo.*atendimento/,
+
+  // Fora do horário
   /fora do hor[aá]rio/,
   /fora de hora/,
-  /horário de atendimento/,
+  /hor[aá]rio de atendimento/,
+  /hor[aá]rio.*funcionamento/,
+  /atendemos.*segunda.*sexta/,
+  /atendemos das \d/,
+  /voltamos.*segunda/,
+  /retornamos.*segunda/,
+
+  // Equipe entrará em contato
   /nossa equipe.*entrar[aá] em contato/,
   /em breve.*retornar/,
   /retornaremos em breve/,
+  /entraremos em contato/,
+  /logo.*retornar/,
+  /em at[eé] \d+ (hora|minuto|dia)/,
+  /prazo de atendimento/,
+
+  // Confirmação de recebimento
   /obrigado por entrar em contato/,
+  /obrigado.*mensagem/,
   /recebemos sua mensagem/,
   /sua mensagem foi recebida/,
+  /mensagem registrada/,
+  /protocolo.*\d{4,}/,
+  /n[uú]mero do protocolo/,
+
+  // Saudações de bot com pergunta de ajuda
   /como posso (te |lhe |)?ajudar/,
+  /posso (te |lhe |)?ajudar/,
   /olá.*como posso/,
   /oi.*como posso/,
+  /ol[aá].*seja bem/,
   /bem[- ]vindo.*atendimento/,
   /seja bem[- ]vindo/,
+  /boas[- ]vindas/,
+
+  // Menu de opções (WhatsApp Business)
   /para falar com.*tecle/,
   /selecione uma op[cç][aã]o/,
+  /escolha uma op[cç][aã]o/,
   /digite \d para/,
   /envie \d para/,
+  /responda \d para/,
   /op[cç][aã]o \d/,
+  /^\s*[1-9]\s*[-–)]\s*\w/m, // Linhas que começam com "1 - ", "2) ", etc.
+
+  // Padrões específicos de plataformas BR (Zendesk, Movidesk, etc.)
+  /ticket.*aberto/,
+  /chamado.*criado/,
+  /solicita[cç][aã]o.*registrada/,
+  /acompanhe.*link/,
+
+  // Mensagem muito longa com formatação típica de bot (mais de 300 chars com quebras)
 ];
+
+/**
+ * Heurística adicional: resposta muito rápida após envio pode ser bot.
+ * Menos de 10 segundos = provavelmente automático.
+ */
+function isLikelyBotByTiming(sentAt: string | null | undefined): boolean {
+  if (!sentAt) return false;
+  const elapsed = Date.now() - new Date(sentAt).getTime();
+  return elapsed < 10_000; // menos de 10 segundos
+}
 
 /**
  * Padrões de confirmação de qualificação — lead confirma ser o responsável.
@@ -124,12 +176,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // 2. Ignorar respostas automáticas de bot (antes de buscar o item)
     if (isBot(messageBody)) {
-      logger.info("Bot response detected, ignoring", { from: senderJid });
+      logger.info("Bot response detected by pattern, ignoring", { from: senderJid });
       return NextResponse.json({ status: "ignored", reason: "bot response" });
     }
 
     const { listAllOutreachItems } = await import("@/lib/outreach-queue-helpers");
     const matchingItem = await listAllOutreachItems(senderJid);
+
+    // Heurística de timing: resposta em menos de 10s após envio = provável bot
+    if (matchingItem && isLikelyBotByTiming(matchingItem.sentAt)) {
+      logger.info("Bot response detected by timing (<10s), ignoring", {
+        from: senderJid,
+        leadId: matchingItem.leadId,
+      });
+      return NextResponse.json({ status: "ignored", reason: "bot response (timing)" });
+    }
 
     // 1. Resposta negativa — mover lead para "Perdido" e parar follow-ups
     if (isNegative(messageBody)) {

@@ -5,9 +5,23 @@ import type { OutreachQueueItem } from "@/types/outreach";
 
 const queueFilePath = path.join(process.cwd(), "data", "outreach-queue.json");
 
+// Todos os statuses em que o lead ainda pode responder e o webhook deve reagir
+const ACTIVE_STATUSES = [
+  "sent",
+  "follow_up_1",
+  "follow_up_2",
+  "awaiting_qualification", // lead demorou para responder à pergunta de qualificação
+  "pdf_sent",
+  "post_analysis_1",
+  "post_analysis_2",
+  "consulting_done",
+  "post_consulting_1",
+  "post_consulting_2",
+];
+
 /**
  * Busca um item na fila de outreach pelo JID do WhatsApp.
- * Retorna o primeiro item com status "sent", "follow_up_1" ou "follow_up_2".
+ * Inclui "awaiting_qualification" para capturar respostas tardias à pergunta de qualificação.
  */
 export async function listAllOutreachItems(whatsappJid: string): Promise<OutreachQueueItem | null> {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
@@ -20,19 +34,7 @@ async function findByJidFile(jid: string): Promise<OutreachQueueItem | null> {
   try {
     const raw = await readFile(queueFilePath, "utf8");
     const items = JSON.parse(raw) as OutreachQueueItem[];
-    const activeStatuses = [
-      "sent",
-      "follow_up_1",
-      "follow_up_2",
-      "pdf_sent",
-      "post_analysis_1",
-      "post_analysis_2",
-      "consulting_done",
-      "post_consulting_1",
-      "post_consulting_2",
-    ];
-
-    return items.find((i) => i.whatsappJid === jid && activeStatuses.includes(i.status)) ?? null;
+    return items.find((i) => i.whatsappJid === jid && ACTIVE_STATUSES.includes(i.status)) ?? null;
   } catch {
     return null;
   }
@@ -57,20 +59,24 @@ export async function getOutreachItemByLeadId(
 async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseAnonKey) return null;
+
+  const statusList = ACTIVE_STATUSES.join(",");
 
   try {
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/outreach_queue?whatsapp_jid=eq.${encodeURIComponent(jid)}&status=in.(sent,follow_up_1,follow_up_2,pdf_sent,post_analysis_1,post_analysis_2,consulting_done,post_consulting_1,post_consulting_2)&limit=1`,
+      `${supabaseUrl}/rest/v1/outreach_queue?whatsapp_jid=eq.${encodeURIComponent(jid)}&status=in.(${statusList})&limit=1`,
       {
         headers: {
           apikey: supabaseAnonKey,
-          Authorization: `Bearer ${supabaseAnonKey}`,
+          Authorization: `Bearer ${serviceRoleKey ?? supabaseAnonKey}`,
         },
         cache: "no-store",
       }
     );
 
+    if (!response.ok) return null;
     const payload = (await response.json()) as OutreachQueueItem[];
     return payload[0] ?? null;
   } catch {
