@@ -25,6 +25,7 @@ const STATUS_CONFIG: Record<OutreachStatus, { label: string; color: string; bg: 
   consulting_done: { label: "Consultoria feita", color: "text-violet-700", bg: "bg-violet-50" },
   post_consulting_1: { label: "Pós-consul. 1", color: "text-violet-700", bg: "bg-violet-100" },
   post_consulting_2: { label: "Pós-consul. 2", color: "text-violet-800", bg: "bg-violet-200" },
+  sending: { label: "Enviando...", color: "text-orange-600", bg: "bg-orange-50" },
   failed: { label: "Falhou", color: "text-red-700", bg: "bg-red-50" },
 };
 

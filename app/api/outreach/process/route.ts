@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
-import { getDueOutreachItems } from "@/lib/outreach-queue";
+import { getDueOutreachItems, updateQueueItem } from "@/lib/outreach-queue";
 import { listLeads } from "@/lib/leads-repository";
 import { processScheduledOutreach } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
+import type { OutreachStatus } from "@/types/outreach";
 
 export async function POST(request: Request): Promise<NextResponse> {
   // Aceita autenticação por cron secret OU sessão do usuário
@@ -41,6 +42,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (!lead) {
         logger.warn("Lead nao encontrado para outreach", { leadId: item.leadId });
         failed += 1;
+        continue;
+      }
+
+      // Marca como "sending" antes de processar para evitar processamento duplo
+      // em caso de crons simultâneos
+      const locked = await updateQueueItem(item.id, {
+        status: "sending" as OutreachStatus,
+        scheduledAt: item.scheduledAt,
+      });
+      if (!locked) {
+        logger.warn("Item ja sendo processado, pulando", { itemId: item.id });
         continue;
       }
 

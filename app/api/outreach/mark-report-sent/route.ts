@@ -79,6 +79,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
+  // Proteção contra duplo envio: se já está em pdf_sent, não envia novamente
+  if (outreachItem.status === "pdf_sent") {
+    return NextResponse.json({ success: true, company: lead.company, alreadySent: true });
+  }
+
   // 1. Enviar Mensagem 1 pós-análise imediatamente
   const msg1 = generatePostAnalysisMessage({ company: lead.company }, 1);
   const sendResult = await sendTextMessage(outreachItem.whatsappJid, msg1);

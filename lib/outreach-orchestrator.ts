@@ -53,12 +53,12 @@ function getRetryDelayMs(attemptCount: number): number {
  * Extrai telefone do campo contact (que pode ser "website | phone" ou só phone).
  */
 function extractPhoneFromContact(contact: string): string | null {
-  const parts = contact.split("|").map((p) => p.trim());
+  const parts = contact.split(/[|,/;]/).map((p) => p.trim());
   for (const part of parts) {
     const normalized = normalizePhoneForWhatsApp(part);
     if (normalized) return normalized;
   }
-  return null;
+  return normalizePhoneForWhatsApp(contact);
 }
 
 /** Delay aleatório entre 25-35 minutos (em ms) para parecer orgânico.

@@ -122,12 +122,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const messageBody = (payload.data?.body ?? "").trim().toLowerCase();
 
-    // 1. Ignorar respostas negativas
-    if (isNegative(messageBody)) {
-      return NextResponse.json({ status: "ignored", reason: "negative response" });
-    }
-
-    // 2. Ignorar respostas automáticas de bot
+    // 2. Ignorar respostas automáticas de bot (antes de buscar o item)
     if (isBot(messageBody)) {
       logger.info("Bot response detected, ignoring", { from: senderJid });
       return NextResponse.json({ status: "ignored", reason: "bot response" });
@@ -135,6 +130,22 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const { listAllOutreachItems } = await import("@/lib/outreach-queue-helpers");
     const matchingItem = await listAllOutreachItems(senderJid);
+
+    // 1. Resposta negativa — mover lead para "Perdido" e parar follow-ups
+    if (isNegative(messageBody)) {
+      if (matchingItem) {
+        await updateQueueItem(matchingItem.id, { status: "failed" });
+        await updateLeadRecord(matchingItem.userId, matchingItem.leadId, {
+          stage: "Perdido",
+          contactStatus: "Respondeu",
+          lastContactAt: new Date().toISOString(),
+        });
+        logger.info("Lead moved to Perdido after negative response", {
+          leadId: matchingItem.leadId,
+        });
+      }
+      return NextResponse.json({ status: "ignored", reason: "negative response" });
+    }
 
     if (!matchingItem) {
       return NextResponse.json({ status: "ignored", reason: "no matching outreach item" });
