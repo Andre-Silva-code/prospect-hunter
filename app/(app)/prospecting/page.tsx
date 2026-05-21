@@ -4,6 +4,7 @@ import React from "react";
 
 import { generateOutreachMessage } from "@/lib/outreach-message";
 import { icpSegments, outreachSteps } from "@/lib/prospecting-data";
+import { normalizePhoneForWhatsApp } from "@/lib/connectors/utils";
 import type { IcpProfile, LeadRecord, LeadSource } from "@/types/prospecting";
 import {
   icpToNiche,
@@ -28,6 +29,20 @@ import {
   saveSearchHistory,
 } from "@/components/prospecting";
 import type { ProspectResult, SearchHistoryEntry } from "@/components/prospecting";
+
+function extractPhoneFromContact(contact: string): string | null {
+  const chunks = contact
+    .split(/[|,/;]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  for (const chunk of chunks) {
+    const normalized = normalizePhoneForWhatsApp(chunk);
+    if (normalized) return normalized;
+  }
+
+  return normalizePhoneForWhatsApp(contact);
+}
 
 export default function ProspectingPage() {
   const [selectedIcpValue, setSelectedIcpValue] = React.useState(ICP_OPTIONS[0].value);
@@ -57,6 +72,13 @@ export default function ProspectingPage() {
   const [previewModal, setPreviewModal] = React.useState(false);
   const [previewMessages, setPreviewMessages] = React.useState<Map<string, string>>(new Map());
   const [crmContacts, setCrmContacts] = React.useState<Set<string>>(new Set());
+  const showCriticalError = React.useCallback((message: string) => {
+    setToast(message);
+    console.error("[prospecting][crm-save-error]", message);
+    if (typeof window !== "undefined") {
+      window.alert(message);
+    }
+  }, []);
 
   React.useEffect(() => {
     void (async () => {
@@ -303,19 +325,24 @@ export default function ProspectingPage() {
 
   const handleGmnAudit = async (lead: ProspectResult) => {
     // 1. Verificar número no WhatsApp antes de qualquer ação
+    const extractedPhone = extractPhoneFromContact(lead.contact);
     setToast("Verificando número no WhatsApp...");
 
     let whatsappStatus: string = "uazapi_off";
-    try {
-      const checkRes = await fetch(
-        `/api/outreach/check?contact=${encodeURIComponent(lead.contact)}`
-      );
-      if (checkRes.ok) {
-        const data = (await checkRes.json()) as { status: typeof whatsappStatus };
-        whatsappStatus = data.status;
+    if (!extractedPhone) {
+      whatsappStatus = "no_phone";
+    } else {
+      try {
+        const checkRes = await fetch(
+          `/api/outreach/check?phone=${encodeURIComponent(extractedPhone)}`
+        );
+        if (checkRes.ok) {
+          const data = (await checkRes.json()) as { status: typeof whatsappStatus };
+          whatsappStatus = data.status;
+        }
+      } catch {
+        // Se falhar a verificação, segue sem outreach automático
       }
-    } catch {
-      // Se falhar a verificação, segue sem outreach automático
     }
 
     if (whatsappStatus === "no_phone") {
@@ -345,7 +372,15 @@ export default function ProspectingPage() {
       stage: "Novo",
       score: lead.score,
       priority: lead.priority,
-      message: "",
+      message: generateOutreachMessage({
+        ...lead,
+        id: "",
+        userId: sessionUserId,
+        stage: "Novo",
+        message: "",
+        contactStatus: "Pendente",
+        createdAt: new Date().toISOString(),
+      } as LeadRecord),
       contactStatus: "Pendente",
       createdAt: new Date().toISOString(),
       source: lead.source,
@@ -371,16 +406,40 @@ export default function ProspectingPage() {
           if (lead.company) next.add(lead.company.trim().toLowerCase());
           return next;
         });
-        if (whatsappStatus === "uazapi_off") {
+        if (whatsappStatus === "found") {
           setToast(
-            `Lead "${lead.company}" salvo no CRM. WhatsApp não configurado — outreach manual.`
+            `✅ "${lead.company}" enviado ao CRM. Mensagem WhatsApp será disparada automaticamente.`
           );
+        } else if (whatsappStatus === "not_found") {
+          setToast(
+            `✅ "${lead.company}" salvo no CRM. Número não está no WhatsApp — faça outreach manual.`
+          );
+        } else if (whatsappStatus === "no_phone") {
+          setToast(
+            `✅ "${lead.company}" salvo no CRM. Sem telefone cadastrado — faça outreach manual.`
+          );
+        } else if (whatsappStatus === "uazapi_off") {
+          setToast(
+            `✅ "${lead.company}" salvo no CRM. WhatsApp não configurado — outreach manual.`
+          );
+        } else {
+          setToast(`✅ "${lead.company}" salvo no CRM com sucesso.`);
         }
       } else {
-        setToast("Erro ao salvar lead no CRM. Tente novamente.");
+        let errorMessage = `Erro ao salvar lead no CRM (HTTP ${res.status}).`;
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (payload?.error) {
+          errorMessage = payload.error;
+        } else {
+          const rawText = await res.text().catch(() => "");
+          if (rawText.trim().length > 0) {
+            errorMessage = `${errorMessage} ${rawText.slice(0, 220)}`;
+          }
+        }
+        showCriticalError(errorMessage);
       }
     } catch {
-      setToast("Erro de conexão. Verifique se o servidor está rodando.");
+      showCriticalError("Erro de conexão. Verifique se o servidor está rodando.");
     }
   };
 

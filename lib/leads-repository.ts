@@ -147,17 +147,24 @@ function createFileStorage(): LeadStorage {
   };
 }
 
-function createSupabaseStorage(): LeadStorage {
-  const supabaseUrl = process.env.SUPABASE_URL!;
+function getSupabaseAuthHeaders(): Record<string, string> {
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
-  const baseHeaders = {
+  // Service role key bypassa RLS — usar sempre que disponível em contexto server-side
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const token = serviceRoleKey ?? supabaseAnonKey;
+  return {
     apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`,
+    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
+}
+
+function createSupabaseStorage(): LeadStorage {
+  const supabaseUrl = process.env.SUPABASE_URL!;
 
   return {
     createLead: async (userId, lead) => {
+      const baseHeaders = getSupabaseAuthHeaders();
       const nextLead = { ...lead, userId };
       const response = await fetch(`${supabaseUrl}/rest/v1/leads`, {
         method: "POST",
@@ -185,6 +192,7 @@ function createSupabaseStorage(): LeadStorage {
       return createdLead;
     },
     listLeads: async (userId) => {
+      const baseHeaders = getSupabaseAuthHeaders();
       const response = await fetch(
         `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at&user_id=eq.${encodeURIComponent(userId)}`,
         {
@@ -203,6 +211,7 @@ function createSupabaseStorage(): LeadStorage {
         .filter((lead): lead is LeadRecord => lead !== null);
     },
     updateLeadRecord: async (userId, leadId, updates) => {
+      const baseHeaders = getSupabaseAuthHeaders();
       const updatePayload = toSupabaseLeadPatch(updates);
       const response = await fetch(
         `${supabaseUrl}/rest/v1/leads?id=eq.${encodeURIComponent(leadId)}&user_id=eq.${encodeURIComponent(userId)}`,
