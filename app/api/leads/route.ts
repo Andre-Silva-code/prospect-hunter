@@ -52,7 +52,14 @@ export async function POST(
     }
 
     return NextResponse.json(createdLead, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Failed to create lead" }, { status: 502 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    logger.error("Lead creation failed", {
+      userId: sessionUser.id,
+      company: lead.company,
+      source: lead.source,
+      error: message,
+    });
+    return NextResponse.json({ error: `Erro ao salvar lead: ${message}` }, { status: 500 });
   }
 }

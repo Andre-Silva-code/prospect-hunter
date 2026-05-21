@@ -176,7 +176,8 @@ function createSupabaseStorage(): LeadStorage {
       });
 
       if (!response.ok) {
-        throw new Error(`supabase insert failed with status ${response.status}`);
+        const errBody = await response.text().catch(() => "");
+        throw new Error(`supabase insert failed (${response.status}): ${errBody.slice(0, 300)}`);
       }
 
       const payload = (await response.json()) as unknown;
