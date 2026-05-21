@@ -75,9 +75,6 @@ export default function ProspectingPage() {
   const showCriticalError = React.useCallback((message: string) => {
     setToast(message);
     console.error("[prospecting][crm-save-error]", message);
-    if (typeof window !== "undefined") {
-      window.alert(message);
-    }
   }, []);
 
   React.useEffect(() => {
