@@ -103,4 +103,4 @@ COPY --from=builder /app/.env.production ./.env.production
 RUN mkdir -p /app/data
 
 EXPOSE 3000
-CMD ["node", "--env-file=/app/.env.production", "server.js"]
+CMD ["node", "server.js"]
