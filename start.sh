@@ -1,10 +1,12 @@
 #!/bin/sh
 # Debug: salvar todas as vars de ambiente disponíveis no container
+mkdir -p /app/data
 env > /app/data/container-env-debug.txt 2>/dev/null || true
 
-# Cria o arquivo de runtime a partir das variáveis do container
-rm -f /app/.env.runtime
+# Usa .env.production gerado no build como base
+cp /app/.env.production /app/.env.runtime
 
+# Override com variáveis injetadas em runtime pelo EasyPanel (se houver)
 for VAR in \
   SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY \
   NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY \
@@ -25,6 +27,7 @@ for VAR in \
   LOG_LEVEL; do
   eval "VAL=\$$VAR"
   if [ -n "$VAL" ]; then
+    grep -v "^${VAR}=" /app/.env.runtime > /app/.env.runtime.tmp && mv /app/.env.runtime.tmp /app/.env.runtime
     echo "${VAR}=${VAL}" >> /app/.env.runtime
   fi
 done
