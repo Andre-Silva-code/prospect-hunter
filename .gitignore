@@ -45,3 +45,4 @@ gbpcheck-auth.json
 data/gbpcheck-screenshots/
 
 *.tsbuildinfo
+.env.production
