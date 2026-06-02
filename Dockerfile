@@ -30,4 +30,4 @@ COPY --from=builder /app/start.sh ./start.sh
 RUN mkdir -p /app/data && chmod +x /app/start.sh
 
 EXPOSE 3000
-CMD ["/bin/sh", "/app/start.sh"]
+ENTRYPOINT ["/bin/sh", "/app/start.sh"]
