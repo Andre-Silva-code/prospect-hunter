@@ -170,7 +170,15 @@ function LeadCard({
   const [phoneValue, setPhoneValue] = React.useState("");
   const [isSavingPhone, setIsSavingPhone] = React.useState(false);
 
-  const hasPhone = /\d{10,}/.test(lead.contact.replace(/\D/g, ""));
+  const hasPhone = lead.contact
+    .split(/[|,/;]/)
+    .map((p) => p.trim())
+    .some((part) => {
+      if (/^https?:\/\//i.test(part)) return false;
+      if (part.startsWith("@")) return false;
+      const digits = part.replace(/\D/g, "");
+      return digits.length >= 10 && digits.length <= 15;
+    });
 
   const handleSavePhone = async () => {
     if (!phoneValue.trim()) return;
