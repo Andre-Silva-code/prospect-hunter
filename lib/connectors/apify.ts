@@ -30,8 +30,8 @@ export function buildApifyInput(
 
   if (source === "Google Maps" || source === "Google Meu Negócio") {
     return {
-      searchStringsArray: [baseSearch],
-      query: baseSearch,
+      searchStringsArray: [request.niche],
+      locationQuery: request.region,
       maxCrawledPlacesPerSearch: request.limitPerSource,
       maxItems: request.limitPerSource,
       includeReviews: false,
