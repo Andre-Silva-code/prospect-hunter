@@ -282,6 +282,7 @@ export type UseLeadsReturn = {
   gbpReportSendingLeadId: string | null;
   markConsultingDone: (leadId: string) => Promise<void>;
   consultingDoneLeadId: string | null;
+  updateLead: (leadId: string, updater: (lead: LeadRecord) => LeadRecord) => void;
 };
 
 export function useLeads(userId: string): UseLeadsReturn {
@@ -559,5 +560,6 @@ export function useLeads(userId: string): UseLeadsReturn {
     gbpReportSendingLeadId,
     markConsultingDone,
     consultingDoneLeadId,
+    updateLead,
   };
 }

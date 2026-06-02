@@ -39,6 +39,7 @@ type PipelineBoardProps = {
   gbpReportSendingLeadId: string | null;
   markConsultingDone: (leadId: string) => Promise<void>;
   consultingDoneLeadId: string | null;
+  onPhoneAdded: (leadId: string, contact: string, queued: boolean) => void;
 };
 
 export function PipelineBoard({
@@ -56,6 +57,7 @@ export function PipelineBoard({
   gbpReportSendingLeadId,
   markConsultingDone,
   consultingDoneLeadId,
+  onPhoneAdded,
 }: PipelineBoardProps): React.ReactElement {
   return (
     <div className="overflow-x-auto pb-2 -mx-1 px-1">
@@ -119,6 +121,7 @@ export function PipelineBoard({
                     onSendGbpReport={() => void sendGbpReport(lead.id)}
                     onMarkConsultingDone={() => void markConsultingDone(lead.id)}
                     isConsultingDone={consultingDoneLeadId === lead.id}
+                    onPhoneAdded={(contact, queued) => onPhoneAdded(lead.id, contact, queued)}
                   />
                 ))}
               </div>
@@ -145,6 +148,7 @@ function LeadCard({
   onSendGbpReport,
   onMarkConsultingDone,
   isConsultingDone,
+  onPhoneAdded,
 }: {
   lead: LeadRecord;
   isMessageExpanded: boolean;
@@ -160,7 +164,34 @@ function LeadCard({
   onSendGbpReport: () => void;
   onMarkConsultingDone: () => void;
   isConsultingDone: boolean;
+  onPhoneAdded: (contact: string, queued: boolean) => void;
 }): React.ReactElement {
+  const [showPhoneInput, setShowPhoneInput] = React.useState(false);
+  const [phoneValue, setPhoneValue] = React.useState("");
+  const [isSavingPhone, setIsSavingPhone] = React.useState(false);
+
+  const hasPhone = /\d{10,}/.test(lead.contact.replace(/\D/g, ""));
+
+  const handleSavePhone = async () => {
+    if (!phoneValue.trim()) return;
+    setIsSavingPhone(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/phone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneValue.trim() }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { lead: { contact: string }; queued: boolean };
+        onPhoneAdded(data.lead.contact, data.queued);
+        setShowPhoneInput(false);
+        setPhoneValue("");
+      }
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
+
   return (
     <article className="rounded-2xl bg-white p-4 shadow-sm border border-[rgba(35,24,21,0.07)] transition hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
@@ -188,6 +219,53 @@ function LeadCard({
 
       <p className="mt-3 text-xs leading-relaxed text-[#7d6a60] line-clamp-2">{lead.trigger}</p>
       <p className="mt-2 text-xs font-medium text-[#2a5a40]">{lead.contact}</p>
+
+      {!hasPhone && (
+        <div className="mt-1">
+          {showPhoneInput ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="tel"
+                value={phoneValue}
+                onChange={(e) => setPhoneValue(e.target.value)}
+                placeholder="(11) 99999-9999"
+                className="flex-1 rounded-lg border border-[rgba(160,75,44,0.25)] px-2.5 py-1.5 text-xs text-[#231815] outline-none focus:border-[#a04b2c] focus:ring-1 focus:ring-[#a04b2c]/10"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleSavePhone();
+                }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => void handleSavePhone()}
+                disabled={isSavingPhone || !phoneValue.trim()}
+                className="rounded-lg bg-[#a04b2c] px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#8a3e24] disabled:opacity-50"
+              >
+                {isSavingPhone ? "..." : "Salvar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhoneInput(false);
+                  setPhoneValue("");
+                }}
+                className="rounded-lg border border-[rgba(35,24,21,0.12)] px-2.5 py-1.5 text-[11px] font-semibold text-[#7d6a60] transition hover:bg-[rgba(35,24,21,0.04)]"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowPhoneInput(true)}
+              className="text-[11px] font-medium text-[#a04b2c] underline-offset-2 hover:underline"
+            >
+              + Adicionar telefone para outreach automático
+            </button>
+          )}
+        </div>
+      )}
+
       <p className="mt-1 text-[11px] text-[#7d6a60]">
         Follow-up #{lead.followUpStep ?? 0} · Próximo {formatFollowUpDate(lead.nextFollowUpAt)}
       </p>
