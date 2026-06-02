@@ -97,6 +97,12 @@ RUN echo "SUPABASE_URL=${SUPABASE_URL}" >> /app/.env.production && \
     echo "PORT=3000" >> /app/.env.production && \
     echo "HOSTNAME=0.0.0.0" >> /app/.env.production
 
+RUN echo "=== DEBUG BUILD ARGS ===" && \
+    echo "SUPABASE_URL presente: $([ -n "${SUPABASE_URL}" ] && echo SIM || echo NAO)" && \
+    echo "SUPABASE_ANON_KEY presente: $([ -n "${SUPABASE_ANON_KEY}" ] && echo SIM || echo NAO)" && \
+    echo "LEADS_STORAGE_PROVIDER: ${LEADS_STORAGE_PROVIDER}" && \
+    echo "==========================="
+
 RUN npm run build
 
 # ---- runner ----
