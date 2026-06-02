@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/leads-repository";
 
 type RateLimiterConfig = {
   maxRequests: number;
@@ -34,15 +35,15 @@ function checkRateLimitMemory(key: string, config: RateLimiterConfig): RateLimit
 // --- Supabase-backed rate limiter ---
 
 function canUseSupabase(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  return Boolean(getSupabaseUrl() && getSupabaseAnonKey());
 }
 
 async function checkRateLimitSupabase(
   key: string,
   config: RateLimiterConfig
 ): Promise<RateLimitResult> {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
   const baseHeaders = {
     apikey: supabaseAnonKey,
     Authorization: `Bearer ${supabaseAnonKey}`,

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { OutreachQueueItem, OutreachStatus } from "@/types/outreach";
+import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/leads-repository";
 
 type OutreachStorage = {
   enqueue: (item: OutreachQueueItem) => Promise<OutreachQueueItem>;
@@ -118,7 +119,7 @@ function getStorage(): OutreachStorage {
 }
 
 function canUseSupabase(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  return Boolean(getSupabaseUrl() && getSupabaseAnonKey());
 }
 
 // --- File storage ---
@@ -205,8 +206,8 @@ function isOutreachQueueItem(value: unknown): value is OutreachQueueItem {
 // --- Supabase storage ---
 
 function createSupabaseStorage(): OutreachStorage {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const baseHeaders = {
     apikey: supabaseAnonKey,

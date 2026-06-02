@@ -66,8 +66,8 @@ export async function updateLeadRecord(
 /** Lista todos os leads de todos os usuários (uso exclusivo do cron/admin). */
 export async function listAllLeads(): Promise<LeadRecord[]> {
   if (canUseSupabaseStorage()) {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
     const response = await fetch(
       `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at`,
       {
@@ -103,8 +103,20 @@ function getLeadStorage(): LeadStorage {
   return createSupabaseStorage();
 }
 
+const SUPABASE_URL_FALLBACK = "https://svkcluuloapmotczeuqw.supabase.co";
+const SUPABASE_ANON_KEY_FALLBACK =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2a2NsdXVsb2FwbW90Y3pldXF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MDI1MjksImV4cCI6MjA4ODQ3ODUyOX0.1nbPer0uQ0-fUsljcfIyWK9LihNyg-0c4ptQXClpMjk";
+
+export function getSupabaseUrl(): string {
+  return (process.env.SUPABASE_URL ?? "").trim() || SUPABASE_URL_FALLBACK;
+}
+
+export function getSupabaseAnonKey(): string {
+  return (process.env.SUPABASE_ANON_KEY ?? "").trim() || SUPABASE_ANON_KEY_FALLBACK;
+}
+
 function canUseSupabaseStorage(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  return Boolean(getSupabaseUrl() && getSupabaseAnonKey());
 }
 
 function createFileStorage(): LeadStorage {
@@ -148,7 +160,7 @@ function createFileStorage(): LeadStorage {
 }
 
 function getSupabaseAuthHeaders(): Record<string, string> {
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+  const supabaseAnonKey = getSupabaseAnonKey();
   // Service role key bypassa RLS — usar sempre que disponível em contexto server-side
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const token = serviceRoleKey ?? supabaseAnonKey;
@@ -160,7 +172,7 @@ function getSupabaseAuthHeaders(): Record<string, string> {
 }
 
 function createSupabaseStorage(): LeadStorage {
-  const supabaseUrl = process.env.SUPABASE_URL!;
+  const supabaseUrl = getSupabaseUrl();
 
   return {
     createLead: async (userId, lead) => {

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { OutreachQueueItem } from "@/types/outreach";
+import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/leads-repository";
 
 const queueFilePath = path.join(process.cwd(), "data", "outreach-queue.json");
 
@@ -24,7 +25,7 @@ const ACTIVE_STATUSES = [
  * Inclui "awaiting_qualification" para capturar respostas tardias à pergunta de qualificação.
  */
 export async function listAllOutreachItems(whatsappJid: string): Promise<OutreachQueueItem | null> {
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  if (getSupabaseUrl() && getSupabaseAnonKey()) {
     return findByJidSupabase(whatsappJid);
   }
   return findByJidFile(whatsappJid);
@@ -57,8 +58,8 @@ export async function getOutreachItemByLeadId(
 }
 
 async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseAnonKey) return null;
 

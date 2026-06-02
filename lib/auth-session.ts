@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/leads-repository";
 
 const SESSION_COOKIE = "prospect_hunter_session";
 const LOCAL_AUTH_EMAIL = process.env.LOCAL_AUTH_EMAIL ?? "admin@prospecthunter.local";
@@ -37,8 +38,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
@@ -101,8 +102,8 @@ export async function createSessionFromPassword(
     return { success: true };
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return { error: "Supabase Auth não configurado" };
