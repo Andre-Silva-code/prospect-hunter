@@ -170,14 +170,17 @@ function LeadCard({
   const [phoneValue, setPhoneValue] = React.useState("");
   const [isSavingPhone, setIsSavingPhone] = React.useState(false);
 
-  const hasPhone = lead.contact
+  const hasMobilePhone = lead.contact
     .split(/[|,/;]/)
     .map((p) => p.trim())
     .some((part) => {
       if (/^https?:\/\//i.test(part)) return false;
       if (part.startsWith("@")) return false;
       const digits = part.replace(/\D/g, "");
-      return digits.length >= 10 && digits.length <= 15;
+      // Remove prefixo 55 se houver
+      const local = digits.startsWith("55") ? digits.slice(2) : digits;
+      // Celular brasileiro: DDD (2 dígitos) + 9 dígitos começando com 9
+      return local.length === 11 && local[2] === "9";
     });
 
   const handleSavePhone = async () => {
@@ -228,7 +231,7 @@ function LeadCard({
       <p className="mt-3 text-xs leading-relaxed text-[#7d6a60] line-clamp-2">{lead.trigger}</p>
       <p className="mt-2 text-xs font-medium text-[#2a5a40]">{lead.contact}</p>
 
-      {!hasPhone && (
+      {!hasMobilePhone && (
         <div className="mt-1">
           {showPhoneInput ? (
             <div className="flex items-center gap-1.5">
