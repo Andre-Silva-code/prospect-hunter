@@ -143,11 +143,17 @@ export function normalizeApifyItem(
 
   if (!company) return null;
 
-  const niche = pickFirstString(item, ["industry", "category", "niche"]) ?? request.niche;
+  const niche =
+    pickFirstString(item, ["industry", "categoryName", "category", "niche"]) ?? request.niche;
   const region = extractRegionFromApifyItem(item, request.region);
   // Instagram: prioriza telefone/email de negócio, depois site, depois username
   const contactParts: string[] = [];
-  const businessPhone = pickFirstString(item, ["businessPhoneNumber", "phone", "phoneNumber"]);
+  const businessPhone = pickFirstString(item, [
+    "businessPhoneNumber",
+    "phone",
+    "phoneUnformatted",
+    "phoneNumber",
+  ]);
   const businessEmail = pickFirstString(item, ["businessEmail", "email", "publicEmail"]);
   const website = pickFirstString(item, ["externalUrl", "website", "websiteUrl", "externalUrls"]);
   const username = pickFirstString(item, ["username", "ownerUsername", "handle"]);
@@ -172,10 +178,22 @@ export function normalizeApifyItem(
 
   const followers = pickFirstNumber(item, ["followers", "followersCount", "followerCount"]);
   const reviews = pickFirstNumber(item, ["reviewsCount", "userRatingCount", "ratingsCount"]);
-  const baseScore = normalizeScore(
-    pickFirstNumber(item, ["score"]) ?? deriveScoreFromSignals(followers, reviews),
-    `${company}-${source}-${index}`
-  );
+
+  // totalScore do Apify Google Maps/GMN é uma nota de 0–5 estrelas.
+  // Converte para a escala interna (55–95) igual ao normalizeGooglePlace.
+  const isGoogleSource = source === "Google Maps" || source === "Google Meu Negócio";
+  const totalStarRating = isGoogleSource
+    ? pickFirstNumber(item, ["totalScore", "rating", "score"])
+    : undefined;
+  const computedScore =
+    isGoogleSource && totalStarRating !== undefined
+      ? Math.min(
+          95,
+          Math.max(55, Math.round(55 + totalStarRating * 6 + Math.log10((reviews ?? 0) + 1) * 8))
+        )
+      : (pickFirstNumber(item, ["score"]) ?? deriveScoreFromSignals(followers, reviews));
+
+  const baseScore = normalizeScore(computedScore, `${company}-${source}-${index}`);
 
   return {
     id: `${source}-${index}-${hash(`${company}-${region}`)}`,
