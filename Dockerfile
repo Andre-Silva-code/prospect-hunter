@@ -98,6 +98,7 @@ COPY --from=builder /app/node_modules/pdfkit/js/data ./node_modules/pdfkit/js/da
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/.env.production ./.env.production
 RUN mkdir -p /app/data
 
 EXPOSE 3000
