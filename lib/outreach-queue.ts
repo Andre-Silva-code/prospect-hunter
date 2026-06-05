@@ -42,7 +42,23 @@ export async function enqueueOutreach(
   phone: string
 ): Promise<OutreachQueueItem> {
   const existing = await getStorage().getByLeadId(leadId);
-  if (existing) return existing;
+  if (existing) {
+    // Se o item anterior falhou por número inválido, resetar com o novo número
+    if (existing.status === "phone_invalid") {
+      const now = new Date().toISOString();
+      const reset = await getStorage().update(existing.id, {
+        phone,
+        status: "pending",
+        whatsappJid: null,
+        scheduledAt: null,
+        lastError: null,
+        attemptCount: 0,
+        updatedAt: now,
+      });
+      return reset ?? existing;
+    }
+    return existing;
+  }
 
   const now = new Date().toISOString();
   const item: OutreachQueueItem = {
