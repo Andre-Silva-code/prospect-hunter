@@ -80,9 +80,6 @@ ENV SUPABASE_URL=$SUPABASE_URL \
     USE_LOCAL_STORAGE=$USE_LOCAL_STORAGE \
     PROSPECTING_ENABLE_DEMO_FALLBACK=$PROSPECTING_ENABLE_DEMO_FALLBACK
 
-# Grava arquivo .env para copiar ao runner
-RUN printenv | grep -E '^(SUPABASE_|NEXT_PUBLIC_|NEXTAUTH_|APIFY_|PROSPECT_|GEMINI_|GOOGLE_|UAZAPI_|OUTREACH_|OWNER_|ENABLE_|LOCAL_AUTH|LEADS_|USE_LOCAL|PROSPECTING_)' > /app/.env.production
-
 RUN npm run build
 
 # ---- runner ----
@@ -98,7 +95,6 @@ COPY --from=builder /app/node_modules/pdfkit/js/data ./node_modules/pdfkit/js/da
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.env.production ./.env.production
 RUN mkdir -p /app/data
 
 EXPOSE 3000
