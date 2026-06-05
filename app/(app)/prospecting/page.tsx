@@ -331,7 +331,7 @@ export default function ProspectingPage() {
     } else {
       try {
         const checkRes = await fetch(
-          `/api/outreach/check?phone=${encodeURIComponent(extractedPhone)}`
+          `/api/outreach/check?contact=${encodeURIComponent(lead.contact)}`
         );
         if (checkRes.ok) {
           const data = (await checkRes.json()) as { status: typeof whatsappStatus };
@@ -584,7 +584,7 @@ export default function ProspectingPage() {
       <SearchHistory onReplay={handleReplaySearch} />
 
       {/* Adicionar lead manualmente */}
-      <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
         <button
           type="button"
           onClick={() => setShowManualForm((v) => !v)}
@@ -609,7 +609,7 @@ export default function ProspectingPage() {
           <form onSubmit={(e) => void handleManualSubmit(e)} className="px-7 pb-7 space-y-5">
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                <span className="text-[11px] font-semibold tracking-[0.06em] text-[#8a7569]">
                   ICP alvo
                 </span>
                 <select
@@ -626,7 +626,7 @@ export default function ProspectingPage() {
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                <span className="text-[11px] font-semibold tracking-[0.06em] text-[#8a7569]">
                   Fonte
                 </span>
                 <select
@@ -654,7 +654,7 @@ export default function ProspectingPage() {
                 ] as { label: string; name: keyof typeof manualForm }[]
               ).map(({ label, name }) => (
                 <label key={name} className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+                  <span className="text-[11px] font-semibold tracking-[0.06em] text-[#8a7569]">
                     {label}
                   </span>
                   <input
@@ -668,7 +668,7 @@ export default function ProspectingPage() {
             </div>
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a7569]">
+              <span className="text-[11px] font-semibold tracking-[0.06em] text-[#8a7569]">
                 Gatilho de abordagem
               </span>
               <textarea
@@ -683,7 +683,7 @@ export default function ProspectingPage() {
             <button
               type="submit"
               disabled={isSubmittingManual}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-[#a04b2c] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#b55a38] active:scale-[0.98] disabled:opacity-60"
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#a04b2c] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#8a3e24] active:scale-[0.98] disabled:opacity-60"
             >
               {isSubmittingManual ? "Salvando..." : "Adicionar lead ao CRM"}
             </button>
@@ -717,7 +717,7 @@ export default function ProspectingPage() {
       />
 
       {/* Seções educativas - colapsáveis */}
-      <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
         <button
           type="button"
           onClick={() => setShowEducational((v) => !v)}
@@ -745,7 +745,7 @@ export default function ProspectingPage() {
                 {icpSegments.map((segment) => (
                   <div
                     key={segment.title}
-                    className="rounded-2xl border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] p-5 grid sm:grid-cols-[1fr_1fr_auto] gap-4 items-start"
+                    className="grid items-start gap-4 rounded-2xl border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] p-5 sm:grid-cols-[1fr_1fr_auto]"
                   >
                     <div>
                       <p className="font-semibold text-[#231815]">{segment.title}</p>
@@ -755,7 +755,7 @@ export default function ProspectingPage() {
                     </div>
                     <p className="text-sm text-[#655248] leading-relaxed">{segment.offer}</p>
                     <div className="rounded-xl bg-[rgba(160,75,44,0.08)] border border-[rgba(160,75,44,0.12)] p-3 text-center min-w-[92px]">
-                      <p className="text-[0.65rem] uppercase tracking-wider text-[#a04b2c] font-semibold">
+                      <p className="text-[0.65rem] font-semibold tracking-[0.05em] text-[#a04b2c]">
                         CPL alvo
                       </p>
                       <p className="mt-1 text-base font-semibold text-[#231815]">{segment.cpl}</p>
@@ -765,7 +765,7 @@ export default function ProspectingPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-[#243b30] p-7 text-[#edf3ef]">
+            <div className="rounded-[20px] bg-[#243b30] p-7 text-[#edf3ef]">
               <SectionLabel>Cadência de abordagem</SectionLabel>
               <h2 className="text-xl font-semibold text-[#edf3ef] mb-6">Sequência de follow-up</h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -776,7 +776,7 @@ export default function ProspectingPage() {
                   >
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <span className="font-semibold text-[#edf3ef]">{step.day}</span>
-                      <span className="text-xs uppercase tracking-wider text-[#b7d3c6]">
+                      <span className="text-xs tracking-[0.05em] text-[#b7d3c6]">
                         {step.touchpoint}
                       </span>
                     </div>
