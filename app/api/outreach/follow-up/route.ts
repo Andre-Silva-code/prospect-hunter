@@ -10,6 +10,7 @@ import {
   processReactivation,
 } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
+import { isBusinessHour } from "@/lib/business-hours";
 import type { LeadRecord } from "@/types/prospecting";
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -22,10 +23,15 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // Follow-up 1: leads enviados há 3+ dias sem resposta
-    const sentDue = await getFollowUpDueItems("sent", 3);
-    // Follow-up 2: leads com follow_up_1 há 3+ dias (total 6 dias)
-    const followUp1Due = await getFollowUpDueItems("follow_up_1", 3);
+    // Só dispara follow-ups em horário comercial (08:00–18:00 SP, seg–sex)
+    if (!isBusinessHour()) {
+      return NextResponse.json({ processed: 0, message: "Fora do horário comercial" });
+    }
+
+    // Follow-up 1: leads enviados há 2+ dias sem resposta
+    const sentDue = await getFollowUpDueItems("sent", 2);
+    // Follow-up 2: leads com follow_up_1 há 2+ dias (total 4 dias)
+    const followUp1Due = await getFollowUpDueItems("follow_up_1", 2);
     // Pós-análise 2: receberam o PDF há 1+ dia sem resposta
     const pdfSentDue = await getFollowUpDueItems("pdf_sent", 1);
     // Pós-análise 3: receberam mensagem 2 há 2+ dias sem resposta
@@ -104,14 +110,19 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
 
     for (const lead of proposalLeads) {
-      const enteredAt = new Date(lead.proposalEnteredAt!).getTime();
       const step = (lead.proposalFollowUpStep ?? 0) as 0 | 1 | 2 | 3;
-      const elapsed = now - enteredAt;
 
-      const shouldSend =
-        (step === 0 && elapsed >= 1 * DAY_MS) ||
-        (step === 1 && elapsed >= 3 * DAY_MS) ||
-        (step === 2 && elapsed >= 7 * DAY_MS);
+      // Usa lastContactAt como referência quando disponível (evita disparar múltiplos
+      // steps no mesmo cron caso o job tenha ficado parado por vários dias).
+      // Step 0 usa proposalEnteredAt pois ainda não houve contato de follow-up.
+      const referenceDate =
+        step === 0
+          ? new Date(lead.proposalEnteredAt!).getTime()
+          : new Date(lead.lastContactAt ?? lead.proposalEnteredAt!).getTime();
+      const elapsed = now - referenceDate;
+
+      const intervalByStep: Record<0 | 1 | 2, number> = { 0: 1, 1: 2, 2: 4 };
+      const shouldSend = elapsed >= (intervalByStep[step as 0 | 1 | 2] ?? 1) * DAY_MS;
 
       if (!shouldSend) continue;
 

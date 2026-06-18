@@ -13,10 +13,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   const cronSecret = process.env.OUTREACH_CRON_SECRET;
   const auth = request.headers.get("authorization");
   const hasCronAuth = cronSecret && auth === `Bearer ${cronSecret}`;
-  const sessionUser = await getSessionUser();
 
-  if (!hasCronAuth && !sessionUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasCronAuth) {
+    // Só tenta ler cookies se não veio via cron secret (evita erro em contexto sem cookies)
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   try {

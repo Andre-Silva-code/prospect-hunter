@@ -21,6 +21,7 @@ import {
   generateReactivationMessage,
 } from "@/lib/outreach-message";
 import { checkUazapiRateLimit } from "@/lib/rate-limiter";
+import { nextBusinessMoment } from "@/lib/business-hours";
 
 const MAX_SEND_ATTEMPTS = 4;
 
@@ -151,7 +152,8 @@ export async function verifyAndSchedule(item: OutreachQueueItem): Promise<void> 
     return;
   }
 
-  const scheduledAt = new Date(Date.now() + randomDelay()).toISOString();
+  // Agenda dentro do horário comercial (08:00–18:00 SP, seg–sex)
+  const scheduledAt = nextBusinessMoment(new Date(Date.now() + randomDelay())).toISOString();
 
   await updateQueueItem(item.id, {
     status: "scheduled",
