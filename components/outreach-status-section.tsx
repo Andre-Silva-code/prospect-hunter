@@ -87,6 +87,7 @@ export function OutreachStatusSection({ leads }: Props) {
   const [processing, setProcessing] = useState(false);
   const [processResult, setProcessResult] = useState<string | null>(null);
   const [retryingInvalid, setRetryingInvalid] = useState(false);
+  const [enriching, setEnriching] = useState(false);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -200,6 +201,33 @@ export function OutreachStatusSection({ leads }: Props) {
     }
   };
 
+  // Busca celular via Google para leads phone_invalid
+  const handleEnrichPhones = async () => {
+    setEnriching(true);
+    setProcessResult(null);
+    try {
+      const res = await fetch("/api/outreach/enrich-phones", { method: "POST" });
+      if (res.ok) {
+        const data = (await res.json()) as { requeued: number; notFound: number; total: number };
+        if (data.total === 0) {
+          setProcessResult("Nenhum número inválido para enriquecer");
+        } else {
+          setProcessResult(
+            `Busca concluída: ${data.requeued} celular(es) encontrado(s) · ${data.notFound} sem resultado`
+          );
+        }
+        await fetchItems();
+      } else {
+        setProcessResult("Erro ao buscar celulares");
+      }
+    } catch {
+      setProcessResult("Erro de conexão");
+    } finally {
+      setEnriching(false);
+      setTimeout(() => setProcessResult(null), 8000);
+    }
+  };
+
   // Processar fila manualmente
   const handleProcessQueue = async () => {
     setProcessing(true);
@@ -263,44 +291,81 @@ export function OutreachStatusSection({ leads }: Props) {
           </div>
         </button>
 
-        {/* Botão reprocessar inválidos — sempre visível quando há falhas */}
+        {/* Botões de ação para phone_invalid */}
         {!loading && filterCounts.failed > 0 && (
-          <button
-            onClick={() => void handleRetryInvalid()}
-            disabled={retryingInvalid}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-950/40 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.04em] text-red-400 transition-colors hover:bg-red-950/60 disabled:opacity-50"
-            title="Tenta extrair celular do campo contact e reenfileirar os números inválidos"
-          >
-            {retryingInvalid ? (
-              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-            ) : (
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            )}
-            {retryingInvalid
-              ? "Verificando..."
-              : `📵 Reprocessar inválidos (${filterCounts.failed})`}
-          </button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {/* Reprocessar: tenta extrair celular já existente no campo contact */}
+            <button
+              onClick={() => void handleRetryInvalid()}
+              disabled={retryingInvalid || enriching}
+              className="flex items-center gap-1.5 rounded-full bg-red-950/40 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.04em] text-red-400 transition-colors hover:bg-red-950/60 disabled:opacity-50"
+              title="Tenta extrair celular do campo contact e reenfileirar"
+            >
+              {retryingInvalid ? (
+                <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              ) : (
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              )}
+              {retryingInvalid ? "Verificando..." : `📵 Reprocessar (${filterCounts.failed})`}
+            </button>
+
+            {/* Enriquecer: busca celular via Google Search */}
+            <button
+              onClick={() => void handleEnrichPhones()}
+              disabled={enriching || retryingInvalid}
+              className="flex items-center gap-1.5 rounded-full bg-blue-950/40 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.04em] text-blue-400 transition-colors hover:bg-blue-950/60 disabled:opacity-50"
+              title="Busca celular via Google para cada lead inválido (pode demorar alguns minutos)"
+            >
+              {enriching ? (
+                <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              ) : (
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              )}
+              {enriching ? "🔍 Buscando... (aguarde)" : "🔍 Buscar celular no Google"}
+            </button>
+          </div>
         )}
       </div>
 
