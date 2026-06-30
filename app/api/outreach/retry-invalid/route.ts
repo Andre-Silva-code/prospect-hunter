@@ -53,21 +53,15 @@ export async function POST(request: Request): Promise<NextResponse> {
   const authHeader = request.headers.get("authorization");
   const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
 
-  if (!isCron) {
-    const sessionUser = await getSessionUser();
-    if (!sessionUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-
   const sessionUser = await getSessionUser();
-  if (!sessionUser && !isCron) {
+
+  if (!isCron && !sessionUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Busca todos os itens phone_invalid do usuário autenticado
-    const userId = sessionUser?.id ?? "owner";
+    // userId vem da sessão; em modo cron sem sessão usa "local-dev-user" como fallback
+    const userId = sessionUser?.id ?? "local-dev-user";
     const invalidItems = await getQueueItemsByStatus(userId, "phone_invalid");
 
     if (invalidItems.length === 0) {
