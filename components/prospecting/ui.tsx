@@ -7,9 +7,7 @@ import type { ProspectResult } from "./types";
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#a04b2c] mb-3">
-      {children}
-    </p>
+    <p className="mb-3 text-[11px] font-semibold tracking-[0.08em] text-[#a04b2c]">{children}</p>
   );
 }
 
@@ -22,7 +20,7 @@ export function PriorityBadge({ priority }: { priority: LeadPriority }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${styles}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles}`}
     >
       {priority}
     </span>
@@ -79,7 +77,7 @@ export function Toast({ message, onClose }: { message: string; onClose: () => vo
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#231815] px-5 py-3.5 text-sm text-[#f8efe4] shadow-xl border border-white/10 max-w-sm"
+      className="fixed bottom-6 right-6 z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-white/10 bg-[#231815] px-5 py-3.5 text-sm text-[#f8efe4] shadow-[0_18px_48px_rgba(35,24,21,0.18)]"
       style={{
         animation: exiting ? "fadeDown 0.3s ease forwards" : "fadeUp 0.3s ease both",
       }}
@@ -178,8 +176,8 @@ export function ContactBadge({ contact }: { contact: string }) {
 
 export function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-20 h-20 rounded-full bg-[rgba(160,75,44,0.08)] flex items-center justify-center mb-5">
+    <div className="flex flex-col items-center justify-center py-14 text-center">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-[rgba(160,75,44,0.12)] bg-[rgba(160,75,44,0.08)]">
         <svg
           width="40"
           height="40"
@@ -253,7 +251,7 @@ export function ResultsDistribution({ results }: { results: ProspectResult[] }) 
   }
 
   return (
-    <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] p-6 shadow-sm">
+    <div className="rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white p-6 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
       <SectionLabel>Distribuição dos resultados</SectionLabel>
       <div className="grid gap-6 sm:grid-cols-2">
         <div>
@@ -342,7 +340,7 @@ export function SearchHistory({ onReplay }: { onReplay: (entry: SearchHistoryEnt
   if (history.length === 0) return null;
 
   return (
-    <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] shadow-sm overflow-hidden">
+    <div className="overflow-hidden rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -435,7 +433,7 @@ export function MessagePreviewModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-3xl max-h-[80vh] rounded-3xl bg-white shadow-2xl flex flex-col overflow-hidden">
+      <div className="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_18px_48px_rgba(35,24,21,0.18)]">
         <div className="flex items-center justify-between px-7 py-5 border-b border-[rgba(35,24,21,0.07)]">
           <div>
             <SectionLabel>Preview das mensagens</SectionLabel>

@@ -256,6 +256,7 @@ export type UseLeadsReturn = {
   metrics: ReturnType<typeof buildOperationalMetrics>;
   followUpQueue: LeadRecord[];
   isLoading: boolean;
+  outreachStatusMap: Record<string, string>;
   formValues: LeadFormValues;
   setFormValues: React.Dispatch<React.SetStateAction<LeadFormValues>>;
   search: string;
@@ -297,10 +298,27 @@ export function useLeads(userId: string): UseLeadsReturn {
   const [gbpReportSendingLeadId, setGbpReportSendingLeadId] = React.useState<string | null>(null);
   const [consultingDoneLeadId, setConsultingDoneLeadId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [outreachStatusMap, setOutreachStatusMap] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
     void loadLeads();
+    void loadOutreachStatus();
   }, [userId]);
+
+  async function loadOutreachStatus(): Promise<void> {
+    try {
+      const res = await fetch("/api/outreach/status");
+      if (!res.ok) return;
+      const data = (await res.json()) as { items?: Array<{ leadId: string; status: string }> };
+      const map: Record<string, string> = {};
+      for (const item of data.items ?? []) {
+        map[item.leadId] = item.status;
+      }
+      setOutreachStatusMap(map);
+    } catch {
+      // silencioso — badge é opcional
+    }
+  }
 
   const filteredLeads = React.useMemo(() => {
     return leads.filter((lead) => {
@@ -491,7 +509,14 @@ export function useLeads(userId: string): UseLeadsReturn {
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         alert(`Erro: ${data.error ?? "Tente novamente."}`);
+        return;
       }
+      // Atualiza o estado local para refletir a mudança na UI sem precisar recarregar
+      updateLead(leadId, (lead) => ({
+        ...lead,
+        stage: "Diagnóstico",
+        contactStatus: "Respondeu",
+      }));
     } catch {
       alert("Erro de conexão.");
     } finally {
@@ -510,7 +535,16 @@ export function useLeads(userId: string): UseLeadsReturn {
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         alert(`Erro: ${data.error ?? "Tente novamente."}`);
+        return;
       }
+      // Atualiza o estado local para mover o lead para "Proposta" na UI imediatamente
+      updateLead(leadId, (lead) => ({
+        ...lead,
+        stage: "Proposta",
+        proposalEnteredAt: new Date().toISOString(),
+        proposalFollowUpStep: 0,
+        lastContactAt: new Date().toISOString(),
+      }));
     } catch {
       alert("Erro de conexão.");
     } finally {
@@ -534,6 +568,7 @@ export function useLeads(userId: string): UseLeadsReturn {
     metrics,
     followUpQueue,
     isLoading,
+    outreachStatusMap,
     formValues,
     setFormValues,
     search,

@@ -39,6 +39,7 @@ type PipelineBoardProps = {
   gbpReportSendingLeadId: string | null;
   markConsultingDone: (leadId: string) => Promise<void>;
   consultingDoneLeadId: string | null;
+  outreachStatusMap: Record<string, string>;
   onPhoneAdded: (leadId: string, contact: string, queued: boolean) => void;
 };
 
@@ -57,6 +58,7 @@ export function PipelineBoard({
   gbpReportSendingLeadId,
   markConsultingDone,
   consultingDoneLeadId,
+  outreachStatusMap,
   onPhoneAdded,
 }: PipelineBoardProps): React.ReactElement {
   return (
@@ -67,7 +69,7 @@ export function PipelineBoard({
           return (
             <section
               key={stage}
-              className="rounded-3xl border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] overflow-hidden shadow-sm w-[300px] flex-shrink-0"
+              className="w-[300px] flex-shrink-0 overflow-hidden rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] shadow-[0_1px_2px_rgba(35,24,21,0.04)]"
             >
               <div
                 className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${cfg.header}`}
@@ -104,6 +106,7 @@ export function PipelineBoard({
                   <LeadCard
                     key={lead.id}
                     lead={lead}
+                    outreachStatus={outreachStatusMap[lead.id]}
                     isMessageExpanded={expandedMessageLeadId === lead.id}
                     isCopyFeedback={copyFeedbackLeadId === lead.id}
                     isSendingGbpReport={gbpReportSendingLeadId === lead.id}
@@ -135,6 +138,7 @@ export function PipelineBoard({
 
 function LeadCard({
   lead,
+  outreachStatus,
   isMessageExpanded,
   isCopyFeedback,
   isSendingGbpReport,
@@ -151,6 +155,7 @@ function LeadCard({
   onPhoneAdded,
 }: {
   lead: LeadRecord;
+  outreachStatus: string | undefined;
   isMessageExpanded: boolean;
   isCopyFeedback: boolean;
   isSendingGbpReport: boolean;
@@ -204,7 +209,7 @@ function LeadCard({
   };
 
   return (
-    <article className="rounded-2xl bg-white p-4 shadow-sm border border-[rgba(35,24,21,0.07)] transition hover:shadow-md">
+    <article className="rounded-2xl border border-[rgba(35,24,21,0.07)] bg-white p-4 shadow-[0_1px_2px_rgba(35,24,21,0.04)] transition hover:border-[rgba(160,75,44,0.18)] hover:shadow-[0_8px_24px_rgba(84,55,31,0.10)]">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-[#231815]">{lead.company}</p>
@@ -226,6 +231,29 @@ function LeadCard({
           Score {lead.score}
         </span>
         <span className={contactStatusBadge(lead.contactStatus)}>{lead.contactStatus}</span>
+        {outreachStatus === "phone_invalid" && (
+          <span
+            className="rounded-lg bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 border border-red-200"
+            title="Número cadastrado é fixo — não tem WhatsApp. Adicione um celular para retomar o outreach automático."
+          >
+            📵 Sem WhatsApp
+          </span>
+        )}
+        {outreachStatus === "scheduled" && (
+          <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 border border-amber-200">
+            🕐 Agendado
+          </span>
+        )}
+        {outreachStatus === "sent" && (
+          <span className="rounded-lg bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 border border-orange-200">
+            ✉️ Enviado
+          </span>
+        )}
+        {(outreachStatus === "follow_up_1" || outreachStatus === "follow_up_2") && (
+          <span className="rounded-lg bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700 border border-purple-200">
+            🔁 {outreachStatus === "follow_up_1" ? "Follow-up 1" : "Follow-up 2"}
+          </span>
+        )}
       </div>
 
       <p className="mt-3 text-xs leading-relaxed text-[#7d6a60] line-clamp-2">{lead.trigger}</p>
@@ -277,9 +305,24 @@ function LeadCard({
         </div>
       )}
 
-      <p className="mt-1 text-[11px] text-[#7d6a60]">
-        Follow-up #{lead.followUpStep ?? 0} · Próximo {formatFollowUpDate(lead.nextFollowUpAt)}
-      </p>
+      {(() => {
+        const isOverdue = lead.nextFollowUpAt != null && new Date(lead.nextFollowUpAt) < new Date();
+        const overdueDays = isOverdue
+          ? Math.floor(
+              (new Date().getTime() - new Date(lead.nextFollowUpAt!).getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          : 0;
+        return (
+          <p
+            className={`mt-1 text-[11px] font-medium ${isOverdue ? "text-red-500" : "text-[#7d6a60]"}`}
+          >
+            {isOverdue && "⚠️ "}Follow-up #{lead.followUpStep ?? 0} · Próximo{" "}
+            {formatFollowUpDate(lead.nextFollowUpAt)}
+            {isOverdue && ` · ${overdueDays}d atrasado`}
+          </p>
+        );
+      })()}
 
       <div className="mt-4 flex gap-2">
         <button
@@ -294,9 +337,19 @@ function LeadCard({
           type="button"
           onClick={onAdvanceStage}
           disabled={
-            lead.stage === "Proposta" || lead.stage === "Fechado" || lead.stage === "Perdido"
+            lead.stage === "Proposta" ||
+            lead.stage === "Fechado" ||
+            lead.stage === "Perdido" ||
+            (lead.stage === "Diagnóstico" &&
+              (lead.source === "Instagram" || lead.source === "Google Meu Negócio"))
           }
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[rgba(35,24,21,0.10)] px-3 py-2.5 text-xs font-semibold text-[#231815] transition hover:bg-[rgba(35,24,21,0.04)] disabled:cursor-not-allowed disabled:opacity-40"
+          title={
+            lead.stage === "Diagnóstico" &&
+            (lead.source === "Instagram" || lead.source === "Google Meu Negócio")
+              ? "Use o botão específico abaixo para avançar este lead"
+              : undefined
+          }
         >
           <IconArrow />
           {lead.stage === "Fechado" || lead.stage === "Perdido" ? "Final" : "Avançar etapa"}

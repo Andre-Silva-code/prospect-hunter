@@ -27,6 +27,7 @@
   "author": "André Silva",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "image-size": "^2.0.2",
     "next": "^14.0.0",
     "pdfkit": "^0.18.0",

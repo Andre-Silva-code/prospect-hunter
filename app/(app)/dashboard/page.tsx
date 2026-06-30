@@ -4,9 +4,7 @@ import AnalyticsCards from "@/components/analytics-cards";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#a04b2c] mb-3">
-      {children}
-    </p>
+    <p className="mb-3 text-[11px] font-semibold tracking-[0.08em] text-[#a04b2c]">{children}</p>
   );
 }
 
@@ -23,23 +21,51 @@ export default function DashboardPage() {
       </div>
 
       {/* Hero card com KPIs */}
-      <div className="rounded-3xl bg-[#1c1410] p-8 lg:p-10 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(160,75,44,0.3),transparent_55%)]" />
-        <div className="relative z-10">
-          <SectionLabel>Sistema de prospecção · Agência de tráfego pago</SectionLabel>
-          <h2 className="mt-2 text-2xl lg:text-3xl font-semibold text-[#f8efe4] leading-tight">
-            Pipeline enxuto para encontrar, qualificar e abordar clientes.
-          </h2>
-          <p className="mt-4 text-[#c4a898] text-base leading-relaxed max-w-2xl">
-            ICPs prioritários, score de qualificação, cadência multicanal e quadro de oportunidades
-            — tudo num só lugar.
-          </p>
-          <AnalyticsCards />
+      <div className="relative overflow-hidden rounded-[20px] bg-[#1c1410] p-7 lg:p-9">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4845e]/50 to-transparent" />
+        <div className="relative z-10 grid gap-8 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
+          <div>
+            <SectionLabel>Sistema de prospecção · Agência de tráfego pago</SectionLabel>
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold leading-tight text-[#f8efe4] lg:text-3xl">
+              Pipeline enxuto para encontrar, qualificar e abordar clientes.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#c4a898]">
+              ICPs prioritários, score de qualificação, cadência multicanal e quadro de
+              oportunidades, tudo num só lugar.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.045] p-5">
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-[#d4845e]">
+              Operação em foco
+            </p>
+            <div className="mt-4 grid gap-3">
+              {[
+                ["Prioridade", "Score alto e follow-up atrasado primeiro"],
+                ["Cadência", "Próxima ação sempre visível no CRM"],
+                ["Qualificação", "Verba, nicho e gatilho em uma leitura rápida"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-start justify-between gap-4 border-t border-white/[0.07] pt-3 first:border-t-0 first:pt-0"
+                >
+                  <span className="text-xs font-semibold text-[#f8efe4]">{label}</span>
+                  <span className="max-w-[220px] text-right text-xs leading-relaxed text-[#c4a898]">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="xl:col-span-2">
+            <AnalyticsCards />
+          </div>
         </div>
       </div>
 
       {/* Operação diária */}
-      <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] p-7 shadow-sm">
+      <div className="rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white p-6 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
         <SectionLabel>Operação diária</SectionLabel>
         <h2 className="text-xl font-semibold text-[#231815] mb-6">Rotina de prospecção</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -74,9 +100,7 @@ export default function DashboardPage() {
             },
           ].map((op) => (
             <div key={op.title} className={`rounded-2xl border p-5 ${op.color}`}>
-              <p className={`text-xs font-semibold uppercase tracking-wider ${op.timeColor}`}>
-                {op.time}
-              </p>
+              <p className={`text-xs font-semibold tracking-[0.04em] ${op.timeColor}`}>{op.time}</p>
               <p className="mt-2 font-semibold text-[#231815]">{op.title}</p>
               <p className="mt-1.5 text-sm text-[#655248] leading-relaxed">{op.desc}</p>
             </div>
@@ -85,18 +109,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Canais */}
-      <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] p-7 shadow-sm">
+      <div className="rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white p-6 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
         <SectionLabel>Cadência multicanal</SectionLabel>
         <h2 className="text-xl font-semibold text-[#231815] mb-6">Contato estratégico por canal</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {channelPlan.map((item) => (
             <div
               key={item.channel}
-              className="rounded-2xl border border-[rgba(35,24,21,0.07)] bg-[#fafaf8] p-5"
+              className="rounded-2xl border border-[rgba(35,24,21,0.07)] bg-[#fffaf5] p-5"
             >
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-[#231815]">{item.channel}</h3>
-                <span className="rounded-full bg-[rgba(35,24,21,0.06)] px-3 py-1 text-[0.65rem] uppercase tracking-wider text-[#6d584b] font-semibold whitespace-nowrap">
+                <span className="whitespace-nowrap rounded-full bg-[rgba(35,24,21,0.06)] px-3 py-1 text-[0.65rem] font-semibold tracking-[0.04em] text-[#6d584b]">
                   {item.cadence}
                 </span>
               </div>

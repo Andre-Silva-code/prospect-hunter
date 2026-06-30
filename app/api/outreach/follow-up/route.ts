@@ -150,6 +150,31 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
+    // --- Expiração de leads "Novo" sem resposta após todos os follow-ups manuais ---
+    // Condição: stage = "Novo", followUpStep >= 2 e nextFollowUpAt vencido há 7+ dias
+    // Esses leads nunca tiveram outreach automático (sem JID) ou foram ignorados.
+    const EXPIRY_GRACE_DAYS = 7;
+    const staleNewLeads = allLeadsForFunnel.filter((l) => {
+      if (l.stage !== "Novo") return false;
+      if ((l.followUpStep ?? 0) < 2) return false;
+      const reference = l.nextFollowUpAt ?? l.lastContactAt ?? l.createdAt;
+      const elapsed = now - new Date(reference).getTime();
+      return elapsed >= EXPIRY_GRACE_DAYS * DAY_MS;
+    });
+
+    for (const lead of staleNewLeads) {
+      await updateLeadRecord(lead.userId, lead.id, {
+        stage: "Perdido",
+        lastContactAt: lead.lastContactAt ?? new Date().toISOString(),
+      });
+      processed += 1;
+      logger.info("Lead Novo expirado → Perdido", {
+        leadId: lead.id,
+        followUpStep: lead.followUpStep,
+        nextFollowUpAt: lead.nextFollowUpAt,
+      });
+    }
+
     // --- Reativação de leads Perdidos (D+30) ---
     const lostLeads = allLeadsForFunnel.filter(
       (l) => l.stage === "Perdido" && l.reactivationSentAt == null

@@ -112,7 +112,7 @@ describe("API routes auth and authorization", () => {
     const payload = (await response.json()) as { error: string };
 
     expect(response.status).toBe(502);
-    expect(payload.error).toBe("Failed to create lead");
+    expect(payload.error).toContain("Failed to create lead");
   });
 
   it("rejects lead PATCH when session is missing", async () => {

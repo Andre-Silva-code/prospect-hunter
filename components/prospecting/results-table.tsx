@@ -88,22 +88,28 @@ function ExpandedRow({ prospect }: { prospect: ProspectResult }) {
       <td colSpan={9} className="px-6 py-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-[0.65rem] uppercase tracking-wider text-[#8a7569] mb-1">Trigger</p>
+            <p className="mb-1 text-[0.65rem] font-semibold tracking-[0.05em] text-[#8a7569]">
+              Trigger
+            </p>
             <p className="text-sm text-[#3f312b] leading-relaxed">{prospect.trigger}</p>
           </div>
           <div>
-            <p className="text-[0.65rem] uppercase tracking-wider text-[#8a7569] mb-1">Contato</p>
+            <p className="mb-1 text-[0.65rem] font-semibold tracking-[0.05em] text-[#8a7569]">
+              Contato
+            </p>
             <p className="text-sm text-[#3f312b] break-all">{prospect.contact}</p>
             <div className="mt-1">
               <ContactBadge contact={prospect.contact} />
             </div>
           </div>
           <div>
-            <p className="text-[0.65rem] uppercase tracking-wider text-[#8a7569] mb-1">ICP</p>
+            <p className="mb-1 text-[0.65rem] font-semibold tracking-[0.05em] text-[#8a7569]">
+              ICP
+            </p>
             <p className="text-sm text-[#3f312b]">{prospect.icp}</p>
           </div>
           <div>
-            <p className="text-[0.65rem] uppercase tracking-wider text-[#8a7569] mb-1">
+            <p className="mb-1 text-[0.65rem] font-semibold tracking-[0.05em] text-[#8a7569]">
               URL da fonte
             </p>
             {prospect.sourceUrl ? (
@@ -118,7 +124,7 @@ function ExpandedRow({ prospect }: { prospect: ProspectResult }) {
                   : prospect.sourceUrl}
               </a>
             ) : (
-              <p className="text-sm text-gray-400">Indisponível</p>
+              <p className="text-sm text-[#7a6b62]">Indisponível</p>
             )}
           </div>
         </div>
@@ -179,14 +185,14 @@ export default function ResultsTable({
 
   if (!searchedAt && !isSearching) {
     return (
-      <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] shadow-sm">
+      <div className="rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
         <EmptyState />
       </div>
     );
   }
 
   return (
-    <div className="rounded-3xl bg-white border border-[rgba(35,24,21,0.07)] p-7 shadow-sm">
+    <div className="rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white p-6 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
         <div>
           <SectionLabel>Lista de oportunidades</SectionLabel>
@@ -209,7 +215,7 @@ export default function ResultsTable({
             type="button"
             onClick={onSendToCrm}
             disabled={isSendingToCrm || selectedLeadIds.length === 0}
-            className="inline-flex items-center justify-center rounded-2xl bg-[#a04b2c] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#b55a38] disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-xl bg-[#a04b2c] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#8a3e24] disabled:opacity-60"
           >
             {isSendingToCrm
               ? "Enviando..."
@@ -219,14 +225,14 @@ export default function ResultsTable({
             <button
               type="button"
               onClick={() => exportResultsToCsv(filteredAndSorted)}
-              className="inline-flex items-center justify-center rounded-2xl border border-[rgba(35,24,21,0.12)] px-4 py-2.5 text-xs font-semibold text-[#231815] transition hover:bg-[#fff5ec]"
+              className="inline-flex items-center justify-center rounded-xl border border-[rgba(35,24,21,0.12)] px-4 py-2.5 text-xs font-semibold text-[#231815] transition hover:bg-[#fff5ec]"
             >
               Exportar CSV
             </button>
           )}
           <Link
             href="/crm"
-            className="inline-flex items-center justify-center rounded-2xl border border-[rgba(35,24,21,0.12)] px-4 py-2.5 text-xs font-semibold text-[#231815] transition hover:bg-[#fff5ec]"
+            className="inline-flex items-center justify-center rounded-xl border border-[rgba(35,24,21,0.12)] px-4 py-2.5 text-xs font-semibold text-[#231815] transition hover:bg-[#fff5ec]"
           >
             Abrir CRM
           </Link>

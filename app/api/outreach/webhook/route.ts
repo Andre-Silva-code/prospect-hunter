@@ -274,9 +274,19 @@ export async function POST(request: Request): Promise<NextResponse> {
         `✅ Lead interessado em reunião!\n\nEmpresa: ${lead?.company ?? matchingItem.leadId}\nRegião: ${lead?.region ?? "-"}\n\nEstá aguardando contato para agendar. Acesse o CRM → card em "Proposta".`
       );
     } else {
-      // 4. Primeira resposta ao outreach — enviar mensagem de qualificação
-      //    antes de avançar o card (filtra bots que escaparam da detecção)
+      // 4. Primeira resposta ao outreach — mover lead para "Contato" imediatamente
+      //    e enviar mensagem de qualificação para confirmar se é o decisor
       await updateQueueItem(matchingItem.id, { status: "awaiting_qualification" });
+
+      // Avança o lead de "Novo" para "Contato" assim que responde (não-bot, não-negativa)
+      if (lead?.stage === "Novo") {
+        await updateLeadRecord(matchingItem.userId, matchingItem.leadId, {
+          stage: "Contato",
+          contactStatus: "Respondeu",
+          lastContactAt: new Date().toISOString(),
+        });
+        logger.info("Lead moved Novo → Contato on first reply", { leadId: matchingItem.leadId });
+      }
 
       logger.info("Sending qualification message", { leadId: matchingItem.leadId });
 

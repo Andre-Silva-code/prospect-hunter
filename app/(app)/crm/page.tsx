@@ -4,9 +4,7 @@ import { ProspectingWorkspace } from "@/components/prospecting-workspace";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#a04b2c] mb-3">
-      {children}
-    </p>
+    <p className="mb-3 text-[11px] font-semibold tracking-[0.08em] text-[#a04b2c]">{children}</p>
   );
 }
 

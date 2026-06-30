@@ -207,7 +207,7 @@ function createSupabaseStorage(): LeadStorage {
     listLeads: async (userId) => {
       const baseHeaders = getSupabaseAuthHeaders();
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at&user_id=eq.${encodeURIComponent(userId)}`,
+        `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at&user_id=eq.${encodeURIComponent(userId)}`,
         {
           headers: baseHeaders,
           cache: "no-store",

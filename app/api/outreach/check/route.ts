@@ -24,9 +24,10 @@ export async function GET(request: Request): Promise<NextResponse<WhatsAppCheckR
 
   const { searchParams } = new URL(request.url);
   const contact = searchParams.get("contact") ?? "";
+  const phoneParam = searchParams.get("phone") ?? "";
 
-  // Extrair telefone do campo contact (pode vir como "site.com | (11) 99999-9999")
-  const phone = extractPhone(contact);
+  // Aceita phone direto ou extrai do campo contact (pode vir como "site.com | (11) 99999-9999")
+  const phone = normalizePhoneForWhatsApp(phoneParam) ?? extractPhone(contact);
   if (!phone) {
     return NextResponse.json({ status: "no_phone" });
   }
@@ -45,7 +46,10 @@ export async function GET(request: Request): Promise<NextResponse<WhatsAppCheckR
 }
 
 function extractPhone(contact: string): string | null {
-  const parts = contact.split("|").map((p) => p.trim());
+  const parts = contact
+    .split(/[|,/;]/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   for (const part of parts) {
     const normalized = normalizePhoneForWhatsApp(part);
     if (normalized) return normalized;

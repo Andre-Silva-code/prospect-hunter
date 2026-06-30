@@ -35,7 +35,7 @@ function MetricCard({
   accent: string;
 }): React.ReactElement {
   return (
-    <article className="rounded-2xl border border-[rgba(35,24,21,0.07)] bg-white p-5 shadow-sm">
+    <article className="rounded-2xl border border-[rgba(35,24,21,0.07)] bg-white p-5 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
       <div
         className="flex h-9 w-9 items-center justify-center rounded-xl"
         style={{ background: `${accent}14`, color: accent }}
@@ -57,7 +57,7 @@ export function MetricsSection({ metrics }: { metrics: Metrics }): React.ReactEl
         label="Leads totais"
         value={String(metrics.total)}
         detail="Base ativa no CRM"
-        accent="#4f74d4"
+        accent="#a04b2c"
       />
       <MetricCard
         icon={<IconClock />}
@@ -99,7 +99,7 @@ export function MetricsSection({ metrics }: { metrics: Metrics }): React.ReactEl
         label="Taxa de resposta"
         value={`${metrics.responseRate}%`}
         detail="Sobre contatados"
-        accent="#7a4ea0"
+        accent="#7a3420"
       />
     </section>
   );
@@ -117,10 +117,10 @@ export function FilterBar({
   onPriorityChange: (v: LeadPriority | "Todas") => void;
 }): React.ReactElement {
   return (
-    <section className="rounded-3xl border border-[rgba(35,24,21,0.07)] bg-white px-6 py-5 shadow-sm">
+    <section className="rounded-[20px] border border-[rgba(35,24,21,0.07)] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a04b2c]">
+          <p className="text-[11px] font-semibold tracking-[0.08em] text-[#a04b2c]">
             Priorização operacional
           </p>
           <h3 className="mt-1 text-lg font-semibold tracking-tight text-[#231815]">
@@ -128,7 +128,7 @@ export function FilterBar({
           </h3>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-[#6c5a51]">
+          <label className="flex flex-col gap-1.5 text-xs font-semibold tracking-[0.04em] text-[#6c5a51]">
             Buscar lead
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#a04b2c]">
@@ -138,16 +138,16 @@ export function FilterBar({
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder="Empresa, nicho, contato..."
-                className="w-full rounded-2xl border border-[rgba(35,24,21,0.1)] bg-[#fffaf5] py-2.5 pl-9 pr-4 text-sm text-[#231815] outline-none transition focus:border-[#a04b2c] focus:ring-2 focus:ring-[#a04b2c]/10"
+                className="w-full rounded-xl border border-[rgba(35,24,21,0.1)] bg-[#fffaf5] py-2.5 pl-9 pr-4 text-sm text-[#231815] outline-none transition focus:border-[#a04b2c] focus:ring-2 focus:ring-[#a04b2c]/10"
               />
             </div>
           </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-[#6c5a51]">
+          <label className="flex flex-col gap-1.5 text-xs font-semibold tracking-[0.04em] text-[#6c5a51]">
             Prioridade
             <select
               value={priorityFilter}
               onChange={(event) => onPriorityChange(event.target.value as LeadPriority | "Todas")}
-              className="rounded-2xl border border-[rgba(35,24,21,0.1)] bg-[#fffaf5] px-4 py-2.5 text-sm text-[#231815] outline-none transition focus:border-[#a04b2c] focus:ring-2 focus:ring-[#a04b2c]/10"
+              className="rounded-xl border border-[rgba(35,24,21,0.1)] bg-[#fffaf5] px-4 py-2.5 text-sm text-[#231815] outline-none transition focus:border-[#a04b2c] focus:ring-2 focus:ring-[#a04b2c]/10"
             >
               <option value="Todas">Todas</option>
               <option value="Alta">Alta</option>

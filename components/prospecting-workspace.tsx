@@ -53,6 +53,7 @@ export function ProspectingWorkspace({
         gbpReportSendingLeadId={hook.gbpReportSendingLeadId}
         markConsultingDone={hook.markConsultingDone}
         consultingDoneLeadId={hook.consultingDoneLeadId}
+        outreachStatusMap={hook.outreachStatusMap}
         onPhoneAdded={(leadId, contact) =>
           hook.updateLead(leadId, (lead) => ({ ...lead, contact }))
         }

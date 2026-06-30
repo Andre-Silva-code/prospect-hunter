@@ -86,6 +86,7 @@ export function OutreachStatusSection({ leads }: Props) {
   const [retrying, setRetrying] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processResult, setProcessResult] = useState<string | null>(null);
+  const [retryingInvalid, setRetryingInvalid] = useState(false);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -172,6 +173,33 @@ export function OutreachStatusSection({ leads }: Props) {
     }
   };
 
+  // Reprocessar phone_invalid — tenta extrair celular do campo contact
+  const handleRetryInvalid = async () => {
+    setRetryingInvalid(true);
+    setProcessResult(null);
+    try {
+      const res = await fetch("/api/outreach/retry-invalid", { method: "POST" });
+      if (res.ok) {
+        const data = (await res.json()) as { requeued: number; noCellFound: number; total: number };
+        if (data.total === 0) {
+          setProcessResult("Nenhum número inválido encontrado");
+        } else {
+          setProcessResult(
+            `${data.requeued} reenfileirado(s) com celular encontrado · ${data.noCellFound} sem celular detectado`
+          );
+        }
+        await fetchItems();
+      } else {
+        setProcessResult("Erro ao reprocessar números inválidos");
+      }
+    } catch {
+      setProcessResult("Erro de conexão");
+    } finally {
+      setRetryingInvalid(false);
+      setTimeout(() => setProcessResult(null), 6000);
+    }
+  };
+
   // Processar fila manualmente
   const handleProcessQueue = async () => {
     setProcessing(true);
@@ -198,36 +226,90 @@ export function OutreachStatusSection({ leads }: Props) {
   };
 
   return (
-    <section className="rounded-3xl bg-[#1c1410] p-6 shadow-lg">
+    <section className="rounded-[20px] bg-[#1c1410] p-6 shadow-[0_8px_24px_rgba(35,24,21,0.14)]">
       {/* Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between"
-      >
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#c9a87c]">
-            Status do Outreach
-          </h3>
-          {!loading && (
-            <p className="mt-1 text-xs text-[#a8937a]">
-              {items.length === 0 ? "Nenhum item na fila" : summaryParts.join(" / ")}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2a1f18] text-xs font-bold text-[#c9a87c]">
-            {items.length}
-          </span>
-          <svg
-            className={`h-4 w-4 text-[#c9a87c] transition-transform ${expanded ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex flex-1 items-center justify-between"
+        >
+          <div className="text-left">
+            <h3 className="text-[11px] font-semibold tracking-[0.08em] text-[#c9a87c]">
+              Status do Outreach
+            </h3>
+            {!loading && (
+              <p className="mt-1 text-xs text-[#a8937a]">
+                {items.length === 0 ? "Nenhum item na fila" : summaryParts.join(" / ")}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2a1f18] text-xs font-bold text-[#c9a87c]">
+              {items.length}
+            </span>
+            <svg
+              className={`h-4 w-4 text-[#c9a87c] transition-transform ${expanded ? "rotate-180" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+        </button>
+
+        {/* Botão reprocessar inválidos — sempre visível quando há falhas */}
+        {!loading && filterCounts.failed > 0 && (
+          <button
+            onClick={() => void handleRetryInvalid()}
+            disabled={retryingInvalid}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-950/40 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.04em] text-red-400 transition-colors hover:bg-red-950/60 disabled:opacity-50"
+            title="Tenta extrair celular do campo contact e reenfileirar os números inválidos"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+            {retryingInvalid ? (
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : (
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            )}
+            {retryingInvalid
+              ? "Verificando..."
+              : `📵 Reprocessar inválidos (${filterCounts.failed})`}
+          </button>
+        )}
+      </div>
+
+      {/* Resultado do reprocessamento — fora do painel expandido */}
+      {processResult && !expanded && (
+        <div className="mt-3 rounded-xl bg-[#2a1f18] px-4 py-2 text-xs text-[#c9a87c]">
+          {processResult}
         </div>
-      </button>
+      )}
 
       {/* Painel expandido */}
       {expanded && (
@@ -243,7 +325,7 @@ export function OutreachStatusSection({ leads }: Props) {
                     e.stopPropagation();
                     setActiveFilter(filter.key);
                   }}
-                  className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                  className={`rounded-full px-3 py-1 text-[10px] font-semibold tracking-[0.04em] transition-colors ${
                     activeFilter === filter.key
                       ? "bg-[#c9a87c] text-[#1c1410]"
                       : "bg-[#2a1f18] text-[#a8937a] hover:bg-[#3a2f28] hover:text-[#c9a87c]"
@@ -263,10 +345,10 @@ export function OutreachStatusSection({ leads }: Props) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleProcessQueue();
+                void handleProcessQueue();
               }}
               disabled={processing}
-              className="flex items-center gap-1.5 rounded-full bg-[#2a1f18] px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#c9a87c] transition-colors hover:bg-[#3a2f28] disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-full bg-[#2a1f18] px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.04em] text-[#c9a87c] transition-colors hover:bg-[#3a2f28] disabled:opacity-50"
             >
               {processing ? (
                 <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -351,7 +433,7 @@ export function OutreachStatusSection({ leads }: Props) {
                             handleRetry(item.id);
                           }}
                           disabled={isRetrying}
-                          className="flex items-center gap-1 rounded-full bg-amber-900/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400 transition-colors hover:bg-amber-900/50 disabled:opacity-50"
+                          className="flex items-center gap-1 rounded-full bg-amber-900/30 px-2.5 py-0.5 text-[10px] font-bold tracking-[0.04em] text-amber-400 transition-colors hover:bg-amber-900/50 disabled:opacity-50"
                         >
                           {isRetrying ? (
                             <svg
@@ -392,7 +474,7 @@ export function OutreachStatusSection({ leads }: Props) {
                         </button>
                       )}
                       <span
-                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.color}`}
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-[0.04em] ${cfg.bg} ${cfg.color}`}
                       >
                         {cfg.label}
                       </span>

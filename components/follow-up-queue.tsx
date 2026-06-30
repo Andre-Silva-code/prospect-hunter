@@ -6,10 +6,10 @@ import type { LeadRecord } from "@/types/prospecting";
 
 export function FollowUpQueue({ queue }: { queue: LeadRecord[] }): React.ReactElement {
   return (
-    <section className="rounded-3xl bg-[#243b30] p-6 shadow-sm">
+    <section className="rounded-[20px] bg-[#243b30] p-6 shadow-[0_1px_2px_rgba(35,24,21,0.04)]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7ec8a4]">
+          <p className="text-[11px] font-semibold tracking-[0.08em] text-[#7ec8a4]">
             Follow-ups prioritários
           </p>
           <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-white">
@@ -39,7 +39,7 @@ export function FollowUpQueue({ queue }: { queue: LeadRecord[] }): React.ReactEl
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#7ec8a4]/20 text-[11px] font-bold text-[#7ec8a4]">
                     {index + 1}
                   </span>
-                  <p className="text-[10px] font-semibold tracking-[0.15em] text-[#7ec8a4]">
+                  <p className="text-[10px] font-semibold tracking-[0.08em] text-[#7ec8a4]">
                     #{index + 1} da fila
                   </p>
                 </div>

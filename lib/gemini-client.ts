@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generateOutreachMessage } from "@/lib/outreach-message";
 import type { LeadPriority, LeadRecord } from "@/types/prospecting";
 
@@ -17,9 +18,6 @@ export type GenerateGeminiMessageResult = {
 };
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-1.5-pro";
-const GEMINI_BASE_URL =
-  process.env.GEMINI_API_BASE_URL ?? "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_TIMEOUT_MS = parseIntegerEnv("GEMINI_TIMEOUT_MS", 30000);
 const GEMINI_CACHE_TTL_MS = parseIntegerEnv("GEMINI_CACHE_TTL_MS", 15 * 60 * 1000);
 const GEMINI_CACHE_MAX_ENTRIES = parseIntegerEnv("GEMINI_CACHE_MAX_ENTRIES", 500);
 const GEMINI_MAX_RETRIES = parseIntegerEnv("GEMINI_MAX_RETRIES", 2);
@@ -57,52 +55,21 @@ export async function generateGeminiOutreachMessage(
   }
 
   for (let attempt = 0; attempt < GEMINI_MAX_RETRIES; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutHandle = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
-
     try {
-      const response = await fetch(
-        `${GEMINI_BASE_URL}/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: buildPrompt(input) }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 180,
-            },
-          }),
-          cache: "no-store",
-          signal: controller.signal,
-        }
-      );
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-      if (!response.ok) {
-        if (isRetryableStatus(response.status) && attempt < GEMINI_MAX_RETRIES - 1) {
-          await sleep(
-            GEMINI_BACKOFF_MS[attempt] ?? GEMINI_BACKOFF_MS[GEMINI_BACKOFF_MS.length - 1]
-          );
-          continue;
-        }
-        return { message: fallbackMessage, provider: "fallback" };
-      }
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: buildPrompt(input) }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 180,
+        },
+      });
 
-      const payload = (await response.json()) as {
-        candidates?: Array<{
-          content?: { parts?: Array<{ text?: string }> };
-        }>;
-      };
-
-      const firstText = payload.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      const firstText = result.response.text().trim();
       const validated = normalizeMessage(firstText);
+
       if (!validated) {
         return { message: fallbackMessage, provider: "fallback" };
       }
@@ -114,14 +81,19 @@ export async function generateGeminiOutreachMessage(
       pruneCache();
 
       return { message: validated, provider: "gemini" };
-    } catch {
-      if (attempt < GEMINI_MAX_RETRIES - 1) {
+    } catch (error) {
+      const isRetryable =
+        error instanceof Error &&
+        (error.message.includes("429") ||
+          error.message.includes("500") ||
+          error.message.includes("503"));
+
+      if (isRetryable && attempt < GEMINI_MAX_RETRIES - 1) {
         await sleep(GEMINI_BACKOFF_MS[attempt] ?? GEMINI_BACKOFF_MS[GEMINI_BACKOFF_MS.length - 1]);
         continue;
       }
+
       return { message: fallbackMessage, provider: "fallback" };
-    } finally {
-      clearTimeout(timeoutHandle);
     }
   }
 
@@ -241,10 +213,6 @@ function parseBackoffMs(raw: string | undefined, maxRetries: number, fallback: n
   }
 
   return parsed;
-}
-
-function isRetryableStatus(status: number): boolean {
-  return status === 429 || status >= 500;
 }
 
 function sleep(ms: number): Promise<void> {
