@@ -32,6 +32,22 @@ export async function POST(
   }
 
   try {
+    // Verificar duplicata: mesmo nome de empresa + mesma fonte
+    const existingLeads = await listLeads(sessionUser.id);
+    const normalizedCompany = lead.company.trim().toLowerCase();
+    const isDuplicate = existingLeads.some(
+      (l) =>
+        l.company.trim().toLowerCase() === normalizedCompany &&
+        (l.source ?? "") === (lead.source ?? "")
+    );
+
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: `Lead "${lead.company}" já existe no CRM (mesma empresa e fonte).` },
+        { status: 409 }
+      );
+    }
+
     const createdLead = await createLead(sessionUser.id, { ...lead, userId: sessionUser.id });
 
     // Fire-and-forget: dispara outreach automático por fonte

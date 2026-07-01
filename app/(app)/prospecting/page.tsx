@@ -264,7 +264,14 @@ export default function ProspectingPage() {
       };
 
       setSearchResults(payload.results);
-      setSelectedLeadIds(payload.results.map((r) => r.id));
+      // Pré-selecionar apenas leads que ainda não estão no CRM
+      const newCrmContacts = crmContacts;
+      const nonDuplicates = payload.results.filter(
+        (r) =>
+          !newCrmContacts.has(r.contact?.trim().toLowerCase()) &&
+          !newCrmContacts.has(r.company?.trim().toLowerCase())
+      );
+      setSelectedLeadIds(nonDuplicates.map((r) => r.id));
       setContactedLeadIds([]);
       setConnectorStatus(payload.connectorStatus ?? {});
       setSearchedAt(new Date().toISOString());
@@ -492,7 +499,21 @@ export default function ProspectingPage() {
   };
 
   const confirmSendToCrm = async () => {
-    const selected = searchResults.filter((l) => selectedLeadIds.includes(l.id));
+    const selected = searchResults
+      .filter((l) => selectedLeadIds.includes(l.id))
+      // Filtrar duplicatas em tempo real antes de enviar
+      .filter(
+        (l) =>
+          !crmContacts.has(l.contact?.trim().toLowerCase()) &&
+          !crmContacts.has(l.company?.trim().toLowerCase())
+      );
+
+    if (selected.length === 0) {
+      setPreviewModal(false);
+      setCrmFeedback("Todos os leads selecionados já estão no CRM.");
+      return;
+    }
+
     setPreviewModal(false);
     setIsSendingToCrm(true);
     setCrmFeedback("");
