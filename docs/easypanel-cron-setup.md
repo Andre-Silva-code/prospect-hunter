@@ -1,12 +1,22 @@
-# Configuração de Cron no EasyPanel — Prospect Hunter
+# Agendamento de Outreach no EasyPanel — Prospect Hunter
 
-> **Por que este documento existe:** o arquivo `vercel.json` na raiz do projeto define
-> os crons **apenas para a Vercel**. Como o Prospect Hunter roda no **EasyPanel**, esses
-> crons **NÃO são executados** — nada dispara o envio automático de mensagens, e os leads
-> ficam parados na coluna "Novo" indefinidamente.
+> **Contexto:** o arquivo `vercel.json` define crons **apenas para a Vercel**. Como o
+> Prospect Hunter roda no **EasyPanel**, esses crons **NÃO são executados**.
 >
-> Para o sistema funcionar, você precisa criar os crons manualmente no painel do EasyPanel,
-> seguindo o passo a passo abaixo. **Faça isso uma única vez.**
+> **Solução adotada (padrão): agendador interno.** O app agora sobe com um agendador
+> embutido (`instrumentation.ts` + `lib/outreach-scheduler.ts`) que dispara os envios
+> automaticamente, sem precisar criar cron nenhum no painel. Basta:
+>
+> 1. Ter a variável `OUTREACH_CRON_SECRET` definida no serviço (Environment).
+> 2. Definir `OUTREACH_SCHEDULER_ENABLED=true` (ativo por padrão em produção).
+> 3. Fazer o deploy.
+>
+> Nos logs do serviço você verá `[scheduler] iniciando agendador interno de outreach`
+> ~15s após o app subir, e `[scheduler] disparo concluído` a cada ciclo.
+>
+> **O restante deste documento (crons externos) é OPCIONAL** — só é necessário se você
+> preferir desativar o agendador interno (`OUTREACH_SCHEDULER_ENABLED=false`) e usar
+> cron externo no lugar.
 
 ---
 
@@ -98,7 +108,7 @@ O segredo do cron está diferente do valor em `OUTREACH_CRON_SECRET`. Confira se
 
 ## Observação: teste local (desenvolvimento)
 
-Para rodar no seu Mac durante o desenvolvimento, existe o script `npm run outreach:cron`, que
-faz o polling a cada 60s apontando para `http://localhost:3000`. **Isso é só para testes locais**
-— em produção, use os crons do EasyPanel descritos acima, que são muito mais confiáveis
-(não dependem de um terminal aberto nem param quando o servidor reinicia).
+Para rodar no seu Mac durante o desenvolvimento, existe o script `npm run outreach:cron:local`,
+que faz o polling a cada 60s apontando para `http://localhost:3000`. **Isso é só para testes
+locais** — em produção, o agendador interno já cuida disso automaticamente (o script local não
+é necessário no EasyPanel).
