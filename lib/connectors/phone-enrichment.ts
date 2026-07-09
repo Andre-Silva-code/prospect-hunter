@@ -14,7 +14,7 @@ const APIFY_BASE = process.env.APIFY_API_BASE_URL ?? "https://api.apify.com";
 export type PhoneEnrichmentResult = {
   phone: string | null;
   jid: string | null;
-  source: "fixo-google" | "site-do-lead" | "apify-google" | null;
+  source: "fixo-google" | "site-do-lead" | "apify-google" | "instagram-bio" | null;
 };
 
 /**
@@ -190,7 +190,141 @@ async function tryApifySearch(lead: LeadRecord): Promise<PhoneEnrichmentResult> 
 }
 
 /**
- * Orquestra as 3 camadas de enriquecimento, em ordem de custo/confiabilidade.
+ * Descobre a URL do perfil do Instagram de um negócio via google-search-scraper.
+ * Retorna a primeira URL de perfil (ignora /p/ e /reel/) ou null.
+ */
+async function findInstagramProfileUrl(lead: LeadRecord): Promise<string | null> {
+  if (!APIFY_TOKEN) return null;
+
+  const location = lead.region ?? "";
+  const query = `site:instagram.com "${lead.company}" ${location} -site:instagram.com/p/ -site:instagram.com/reel/`;
+
+  try {
+    const runRes = await fetchWithTimeout(
+      `${APIFY_BASE}/v2/acts/apify~google-search-scraper/runs?token=${APIFY_TOKEN}&waitForFinish=60`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queries: query, resultsPerPage: 5, maxPagesPerQuery: 1 }),
+        cache: "no-store",
+      },
+      75_000
+    );
+    if (!runRes.ok) return null;
+
+    const runPayload = (await runRes.json()) as {
+      data?: { status?: string; defaultDatasetId?: string };
+    };
+    if (runPayload.data?.status !== "SUCCEEDED" || !runPayload.data.defaultDatasetId) return null;
+
+    const datasetRes = await fetchWithTimeout(
+      `${APIFY_BASE}/v2/datasets/${runPayload.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&clean=true&format=json`,
+      { cache: "no-store" },
+      30_000
+    );
+    if (!datasetRes.ok) return null;
+    const items = (await datasetRes.json()) as unknown[];
+    if (!Array.isArray(items)) return null;
+
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue;
+      const organic = (item as Record<string, unknown>).organicResults;
+      if (!Array.isArray(organic)) continue;
+      for (const result of organic) {
+        if (!result || typeof result !== "object") continue;
+        const url = (result as Record<string, unknown>).url;
+        if (typeof url !== "string") continue;
+        // Só perfis: instagram.com/handle (sem /p/ ou /reel/)
+        const m = /instagram\.com\/([A-Za-z0-9_.]+)\/?$/.exec(url.split("?")[0]);
+        if (m && m[1] && !["p", "reel", "explore", "stories"].includes(m[1])) {
+          return `https://www.instagram.com/${m[1]}/`;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Camada 4 — Instagram. Muitos negócios locais (clínicas, restaurantes) expõem
+ * o WhatsApp na bio ou no telefone público de negócio do Instagram.
+ * Descobre o perfil e usa um profile-scraper do Apify para ler a bio.
+ */
+async function tryInstagramBio(lead: LeadRecord): Promise<PhoneEnrichmentResult> {
+  if (!APIFY_TOKEN) return { phone: null, jid: null, source: null };
+
+  const profileUrl = await findInstagramProfileUrl(lead);
+  if (!profileUrl) return { phone: null, jid: null, source: null };
+
+  const handle = /instagram\.com\/([A-Za-z0-9_.]+)/.exec(profileUrl)?.[1];
+  if (!handle) return { phone: null, jid: null, source: null };
+
+  // Actor de perfil do Instagram — configurável, com padrão público.
+  const actorId =
+    process.env.PROSPECT_APIFY_INSTAGRAM_PROFILE_ACTOR_ID ?? "apify~instagram-profile-scraper";
+
+  try {
+    const runRes = await fetchWithTimeout(
+      `${APIFY_BASE}/v2/acts/${encodeURIComponent(actorId)}/runs?token=${APIFY_TOKEN}&waitForFinish=90`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [handle] }),
+        cache: "no-store",
+      },
+      100_000
+    );
+    if (!runRes.ok) return { phone: null, jid: null, source: null };
+
+    const runPayload = (await runRes.json()) as {
+      data?: { status?: string; defaultDatasetId?: string };
+    };
+    if (runPayload.data?.status !== "SUCCEEDED" || !runPayload.data.defaultDatasetId) {
+      return { phone: null, jid: null, source: null };
+    }
+
+    const datasetRes = await fetchWithTimeout(
+      `${APIFY_BASE}/v2/datasets/${runPayload.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&clean=true&format=json`,
+      { cache: "no-store" },
+      30_000
+    );
+    if (!datasetRes.ok) return { phone: null, jid: null, source: null };
+    const items = (await datasetRes.json()) as unknown[];
+    if (!Array.isArray(items) || items.length === 0)
+      return { phone: null, jid: null, source: null };
+
+    // Coleta candidatos: telefone público de negócio + bio + link externo
+    const candidates: string[] = [];
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue;
+      const r = item as Record<string, unknown>;
+      // Telefone público de negócio (formato estruturado do IG)
+      const bizPhone = r.businessPhoneNumber ?? r.public_phone_number ?? r.phone;
+      if (typeof bizPhone === "string") {
+        const n = normalizePhoneForWhatsApp(bizPhone);
+        if (n) candidates.push(n);
+      }
+      // Bio / descrição
+      const bio = r.biography ?? r.bio;
+      if (typeof bio === "string") candidates.push(...extractPhonesFromText(bio));
+    }
+
+    for (const candidate of [...new Set(candidates)].slice(0, 5)) {
+      const check = await checkWhatsAppNumber(candidate);
+      if (check.exists) {
+        return { phone: candidate, jid: check.jid, source: "instagram-bio" };
+      }
+    }
+    return { phone: null, jid: null, source: null };
+  } catch {
+    return { phone: null, jid: null, source: null };
+  }
+}
+
+/**
+ * Orquestra as camadas de enriquecimento, em ordem de custo/confiabilidade.
  * Retorna no primeiro acerto (número que EXISTE de fato no WhatsApp).
  *
  * @param lead - o lead a enriquecer
@@ -226,7 +360,7 @@ export async function enrichLeadPhone(
     }
   }
 
-  // Camada 3: busca via Apify como último recurso
+  // Camada 3: busca via Apify (Google) como recurso intermediário
   const layer3 = await tryApifySearch(lead);
   if (layer3.phone) {
     logger.info("WhatsApp encontrado via Apify", {
@@ -236,7 +370,17 @@ export async function enrichLeadPhone(
     return layer3;
   }
 
-  logger.info("Nenhum WhatsApp encontrado nas 3 camadas", {
+  // Camada 4: bio/telefone público do Instagram do negócio
+  const layer4 = await tryInstagramBio(lead);
+  if (layer4.phone) {
+    logger.info("WhatsApp encontrado na bio do Instagram", {
+      leadId: lead.id,
+      company: lead.company,
+    });
+    return layer4;
+  }
+
+  logger.info("Nenhum WhatsApp encontrado nas 4 camadas", {
     leadId: lead.id,
     company: lead.company,
   });

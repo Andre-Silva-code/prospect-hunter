@@ -330,12 +330,12 @@ export function OutreachStatusSection({ leads }: Props) {
               {retryingInvalid ? "Verificando..." : `📵 Reprocessar (${filterCounts.failed})`}
             </button>
 
-            {/* Enriquecer: busca celular via Google Search */}
+            {/* Enriquecer: busca WhatsApp em 4 camadas (fixo, site, Google, Instagram) */}
             <button
               onClick={() => void handleEnrichPhones()}
               disabled={enriching || retryingInvalid}
               className="flex items-center gap-1.5 rounded-full bg-blue-950/40 px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.04em] text-blue-400 transition-colors hover:bg-blue-950/60 disabled:opacity-50"
-              title="Busca celular via Google para cada lead inválido (pode demorar alguns minutos)"
+              title="Busca WhatsApp em 4 camadas: valida o fixo do Google, lê o site do lead, busca na web e no Instagram do negócio. Valida cada número no WhatsApp. Pode demorar alguns minutos."
             >
               {enriching ? (
                 <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -363,7 +363,7 @@ export function OutreachStatusSection({ leads }: Props) {
                   />
                 </svg>
               )}
-              {enriching ? "🔍 Buscando... (aguarde)" : "🔍 Buscar celular no Google"}
+              {enriching ? "🔍 Buscando... (aguarde)" : "🔍 Buscar WhatsApp (4 camadas)"}
             </button>
           </div>
         )}
