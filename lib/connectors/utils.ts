@@ -185,6 +185,20 @@ export function normalizePhoneForWhatsApp(phone: string): string | null {
   return digits;
 }
 
+/**
+ * Extrai o primeiro telefone válido do campo `contact`, que pode conter
+ * várias partes separadas por | , / ou ; (ex.: "https://site.com | (11) 3000-0000").
+ * Retorna o número normalizado para WhatsApp (55 + DDD + número) ou null.
+ */
+export function extractPhoneFromContact(contact: string): string | null {
+  const parts = contact.split(/[|,/;]/).map((p) => p.trim());
+  for (const part of parts) {
+    const normalized = normalizePhoneForWhatsApp(part);
+    if (normalized) return normalized;
+  }
+  return normalizePhoneForWhatsApp(contact);
+}
+
 export function extractRegionFromApifyItem(
   item: Record<string, unknown>,
   fallback: string

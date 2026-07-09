@@ -1,6 +1,6 @@
 import type { LeadRecord } from "@/types/prospecting";
 import type { OutreachQueueItem } from "@/types/outreach";
-import { normalizePhoneForWhatsApp } from "@/lib/connectors/utils";
+import { extractPhoneFromContact } from "@/lib/connectors/utils";
 import {
   checkWhatsAppNumber,
   isUazapiConfigured,
@@ -50,24 +50,19 @@ function getRetryDelayMs(attemptCount: number): number {
   return (delays[index] ?? 60) * 60 * 1000;
 }
 
-/**
- * Extrai telefone do campo contact (que pode ser "website | phone" ou só phone).
- */
-function extractPhoneFromContact(contact: string): string | null {
-  const parts = contact.split(/[|,/;]/).map((p) => p.trim());
-  for (const part of parts) {
-    const normalized = normalizePhoneForWhatsApp(part);
-    if (normalized) return normalized;
-  }
-  return normalizePhoneForWhatsApp(contact);
-}
-
-/** Delay aleatório entre 25-35 minutos (em ms) para parecer orgânico.
- * Pode ser zerado via OUTREACH_DELAY_MS=0 para testes. */
+/** Delay antes de agendar o primeiro contato, para parecer orgânico.
+ * Se OUTREACH_DELAY_MS estiver definido, usa-o como base e aplica um jitter
+ * de +0-50% para não enviar sempre no mesmo intervalo exato.
+ * Se não definido, usa 3-8 min (rápido, mas ainda orgânico).
+ * OUTREACH_DELAY_MS=0 → envio quase imediato (apenas horário comercial), útil em testes. */
 function randomDelay(): number {
   const override = process.env.OUTREACH_DELAY_MS;
-  if (override !== undefined) return Math.max(0, parseInt(override, 10) || 0);
-  return (25 + Math.random() * 10) * 60 * 1000;
+  if (override !== undefined) {
+    const base = Math.max(0, parseInt(override, 10) || 0);
+    // jitter de até +50% sobre o valor base para variar o intervalo
+    return base + Math.random() * base * 0.5;
+  }
+  return (3 + Math.random() * 5) * 60 * 1000;
 }
 
 /**

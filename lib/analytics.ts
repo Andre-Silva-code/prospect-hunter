@@ -1,4 +1,5 @@
 import type { LeadRecord, LeadSource, PipelineStage } from "@/types/prospecting";
+import { isNewLeadOverdue } from "@/lib/sla";
 
 export type DashboardMetrics = {
   totalLeads: number;
@@ -9,6 +10,7 @@ export type DashboardMetrics = {
   avgScore: number;
   followUpsPending: number;
   followUpsOverdue: number;
+  newLeadsOverdue: number;
   leadsThisWeek: number;
   contactedThisWeek: number;
 };
@@ -59,6 +61,9 @@ export function calculateMetrics(leads: LeadRecord[], now: Date = new Date()): D
     return new Date(l.nextFollowUpAt) <= now;
   }).length;
 
+  // Leads travados em "Novo" além do SLA de primeiro contato
+  const newLeadsOverdue = leads.filter((l) => isNewLeadOverdue(l, now)).length;
+
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const leadsThisWeek = leads.filter((l) => new Date(l.createdAt) >= weekAgo).length;
   const contactedThisWeek = leads.filter(
@@ -74,6 +79,7 @@ export function calculateMetrics(leads: LeadRecord[], now: Date = new Date()): D
     avgScore,
     followUpsPending,
     followUpsOverdue,
+    newLeadsOverdue,
     leadsThisWeek,
     contactedThisWeek,
   };

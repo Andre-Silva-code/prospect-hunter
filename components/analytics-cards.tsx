@@ -18,7 +18,10 @@ function metricsToKpis(metrics: DashboardMetrics): KpiCard[] {
     {
       label: "Total de leads",
       value: String(metrics.totalLeads),
-      detail: `${metrics.leadsThisWeek} novos esta semana`,
+      detail:
+        metrics.newLeadsOverdue > 0
+          ? `⏰ ${metrics.newLeadsOverdue} atrasado(s) em "Novo"`
+          : `${metrics.leadsThisWeek} novos esta semana`,
     },
     {
       label: "Taxa de resposta",
