@@ -7,7 +7,7 @@
   "scripts": {
     "predev": "mkdir -p .next/server/vendor-chunks/data && cp node_modules/pdfkit/js/data/*.afm .next/server/vendor-chunks/data/ 2>/dev/null || true",
     "dev": "next dev",
-    "outreach:cron": "while true; do curl -s -X POST http://localhost:3000/api/outreach/process -H 'Authorization: Bearer prospect-hunter-cron-secret-local' | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f\"[Outreach] processed={d.get(\"processed\",0)} failed={d.get(\"failed\",0)}\")' 2>/dev/null; sleep 60; done",
+    "outreach:cron:local": "while true; do curl -s -X POST http://localhost:3000/api/outreach/process -H 'Authorization: Bearer prospect-hunter-cron-secret-local' | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f\"[Outreach] processed={d.get(\"processed\",0)} failed={d.get(\"failed\",0)}\")' 2>/dev/null; sleep 60; done",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",

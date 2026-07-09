@@ -13,6 +13,7 @@ import {
 } from "@/components/icons";
 import { stageConfig, priorityBadge, contactStatusBadge } from "@/components/pipeline/stage-config";
 import { defaultIcp, defaultSource, formatFollowUpDate } from "@/hooks/use-leads";
+import { isNewLeadOverdue, formatWaitingTime, getNewLeadSlaHours } from "@/lib/sla";
 import type { LeadRecord, PipelineStage } from "@/types/prospecting";
 
 const pipelineStages: PipelineStage[] = [
@@ -175,6 +176,9 @@ function LeadCard({
   const [phoneValue, setPhoneValue] = React.useState("");
   const [isSavingPhone, setIsSavingPhone] = React.useState(false);
 
+  // Score mínimo para outreach automático (espelha OUTREACH_MIN_SCORE do servidor).
+  const minOutreachScore = Number(process.env.NEXT_PUBLIC_OUTREACH_MIN_SCORE ?? "65") || 65;
+
   const hasMobilePhone = lead.contact
     .split(/[|,/;]/)
     .map((p) => p.trim())
@@ -231,12 +235,39 @@ function LeadCard({
           Score {lead.score}
         </span>
         <span className={contactStatusBadge(lead.contactStatus)}>{lead.contactStatus}</span>
+        {/* Atraso no primeiro contato: lead parado em "Novo" além do SLA */}
+        {isNewLeadOverdue(lead) && (
+          <span
+            className="rounded-lg bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 border border-red-200"
+            title={`Este lead está em "Novo" há mais de ${getNewLeadSlaHours()}h sem primeiro contato. Verifique se o cron de outreach está ativo.`}
+          >
+            ⏰ Atrasado · {formatWaitingTime(lead)}
+          </span>
+        )}
+        {/* Score abaixo do mínimo: não entrou no outreach automático */}
+        {lead.stage === "Novo" && lead.score < minOutreachScore && (
+          <span
+            className="rounded-lg bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 border border-slate-200"
+            title={`Score ${lead.score} abaixo do mínimo (${minOutreachScore}) — não recebe contato automático. Avance manualmente se quiser abordar.`}
+          >
+            ⚠️ Score baixo
+          </span>
+        )}
+        {/* Sem celular ainda, mas o enriquecimento automático pode encontrar */}
+        {!hasMobilePhone && outreachStatus !== "phone_invalid" && lead.stage === "Novo" && (
+          <span
+            className="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600 border border-blue-200"
+            title="Busca automática de WhatsApp em andamento (fixo do Google → site do lead → busca web). Você pode adicionar manualmente abaixo."
+          >
+            ⏳ Buscando WhatsApp
+          </span>
+        )}
         {outreachStatus === "phone_invalid" && (
           <span
             className="rounded-lg bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 border border-red-200"
-            title="Número cadastrado é fixo — não tem WhatsApp. Adicione um celular para retomar o outreach automático."
+            title="Não encontramos WhatsApp automaticamente (testamos o fixo do Google, o site do lead e a busca na web). Adicione um celular manualmente para retomar o outreach."
           >
-            📵 Sem WhatsApp
+            📵 Sem WhatsApp (auto falhou)
           </span>
         )}
         {outreachStatus === "scheduled" && (
