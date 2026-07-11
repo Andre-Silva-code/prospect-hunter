@@ -3,6 +3,7 @@ import { GooglePlacesResponseSchema } from "./types";
 import { searchApifyGoogleConnector } from "./apify";
 import { isApifyEnabled } from "./apify-config";
 import { normalizeGooglePlace } from "./normalizers";
+import { logger } from "@/lib/logger";
 
 /**
  * Busca leads GMN/Google Maps.
@@ -65,19 +66,32 @@ async function searchGooglePlacesApi(
         textQuery,
         languageCode: "pt-BR",
         regionCode: "BR",
-        locationRestriction: {
+        // locationBias (não Restriction) aceita retângulo sem exigir "categorical
+        // query"; enviesa para o Brasil sem rejeitar a requisição.
+        locationBias: {
           rectangle: {
             low: { latitude: -33.75, longitude: -73.99 },
             high: { latitude: 5.27, longitude: -34.79 },
           },
         },
-        maxResultCount: request.limitPerSource,
+        // A Places API (New) aceita no máximo 20 por página.
+        pageSize: Math.min(20, Math.max(1, request.limitPerSource)),
       }),
       cache: "no-store",
     });
 
     if (!response.ok) {
-      return { results: [], status: `Google Places indisponivel (${response.status})` };
+      // Captura a mensagem de erro exata do Google para diagnóstico.
+      const errBody = await response.text().catch(() => "");
+      let detail = "";
+      try {
+        const parsed = JSON.parse(errBody) as { error?: { message?: string } };
+        detail = parsed.error?.message ? ` — ${parsed.error.message}` : "";
+      } catch {
+        detail = errBody ? ` — ${errBody.slice(0, 160)}` : "";
+      }
+      logger.warn("Google Places erro", { status: response.status, detail, textQuery });
+      return { results: [], status: `Google Places indisponivel (${response.status})${detail}` };
     }
 
     const rawPayload = (await response.json()) as unknown;
