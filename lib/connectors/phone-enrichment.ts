@@ -143,12 +143,19 @@ async function tryApifySearch(lead: LeadRecord): Promise<PhoneEnrichmentResult> 
       75_000
     );
 
-    if (!runRes.ok) return { phone: null, jid: null, source: null };
+    if (!runRes.ok) {
+      logger.warn("[apify-search] run falhou", { leadId: lead.id, status: runRes.status });
+      return { phone: null, jid: null, source: null };
+    }
 
     const runPayload = (await runRes.json()) as {
       data?: { status?: string; defaultDatasetId?: string };
     };
     if (runPayload.data?.status !== "SUCCEEDED" || !runPayload.data.defaultDatasetId) {
+      logger.warn("[apify-search] run não SUCCEEDED", {
+        leadId: lead.id,
+        runStatus: runPayload.data?.status ?? "sem status",
+      });
       return { phone: null, jid: null, source: null };
     }
 
@@ -210,12 +217,24 @@ async function findInstagramProfileUrl(lead: LeadRecord): Promise<string | null>
       },
       75_000
     );
-    if (!runRes.ok) return null;
+    if (!runRes.ok) {
+      logger.warn("[ig] busca de perfil: run falhou", {
+        leadId: lead.id,
+        status: runRes.status,
+      });
+      return null;
+    }
 
     const runPayload = (await runRes.json()) as {
       data?: { status?: string; defaultDatasetId?: string };
     };
-    if (runPayload.data?.status !== "SUCCEEDED" || !runPayload.data.defaultDatasetId) return null;
+    if (runPayload.data?.status !== "SUCCEEDED" || !runPayload.data.defaultDatasetId) {
+      logger.warn("[ig] busca de perfil: run não SUCCEEDED", {
+        leadId: lead.id,
+        runStatus: runPayload.data?.status ?? "sem status",
+      });
+      return null;
+    }
 
     const datasetRes = await fetchWithTimeout(
       `${APIFY_BASE}/v2/datasets/${runPayload.data.defaultDatasetId}/items?token=${APIFY_TOKEN}&clean=true&format=json`,
@@ -237,12 +256,18 @@ async function findInstagramProfileUrl(lead: LeadRecord): Promise<string | null>
         // Só perfis: instagram.com/handle (sem /p/ ou /reel/)
         const m = /instagram\.com\/([A-Za-z0-9_.]+)\/?$/.exec(url.split("?")[0]);
         if (m && m[1] && !["p", "reel", "explore", "stories"].includes(m[1])) {
+          logger.info("[ig] perfil encontrado", { leadId: lead.id, handle: m[1] });
           return `https://www.instagram.com/${m[1]}/`;
         }
       }
     }
+    logger.info("[ig] nenhum perfil de Instagram encontrado na busca", { leadId: lead.id });
     return null;
-  } catch {
+  } catch (error) {
+    logger.warn("[ig] busca de perfil: exceção", {
+      leadId: lead.id,
+      error: error instanceof Error ? error.message : "unknown",
+    });
     return null;
   }
 }
@@ -276,7 +301,15 @@ async function tryInstagramBio(lead: LeadRecord): Promise<PhoneEnrichmentResult>
       },
       100_000
     );
-    if (!runRes.ok) return { phone: null, jid: null, source: null };
+    if (!runRes.ok) {
+      logger.warn("[ig] profile-scraper run falhou", {
+        leadId: lead.id,
+        handle,
+        actorId,
+        status: runRes.status,
+      });
+      return { phone: null, jid: null, source: null };
+    }
 
     const runPayload = (await runRes.json()) as {
       data?: { status?: string; defaultDatasetId?: string };
