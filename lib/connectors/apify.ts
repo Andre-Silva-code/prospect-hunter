@@ -2,6 +2,7 @@ import type { LeadSource } from "@/types/prospecting";
 import type { ConnectorErrorResult, ProspectSearchRequest, ProspectSearchResult } from "./types";
 import { ApifyRunResponseSchema } from "./types";
 import { normalizeApifyItem, extractApifyDatasetError } from "./normalizers";
+import { isApifyEnabled } from "./apify-config";
 import {
   fetchWithTimeout,
   isAbortError,
@@ -56,6 +57,7 @@ export async function searchApifyConnector(
   source: "Instagram" | "LinkedIn",
   request: ProspectSearchRequest
 ): Promise<{ results: ProspectSearchResult[]; status: string }> {
+  if (!isApifyEnabled()) return { results: [], status: "Apify desativado" };
   const token = process.env.APIFY_TOKEN;
   if (!token) return { results: [], status: "Sem conector configurado" };
 
@@ -75,6 +77,7 @@ export async function searchApifyGoogleConnector(
   source: "Google Maps" | "Google Meu Negócio",
   request: ProspectSearchRequest
 ): Promise<{ results: ProspectSearchResult[]; status: string }> {
+  if (!isApifyEnabled()) return { results: [], status: "Apify desativado" };
   const token = process.env.APIFY_TOKEN;
   if (!token) return { results: [], status: "Sem conector configurado" };
 

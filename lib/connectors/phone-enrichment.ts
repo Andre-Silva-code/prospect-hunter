@@ -1,5 +1,6 @@
 import type { LeadRecord } from "@/types/prospecting";
 import { checkWhatsAppNumber } from "@/lib/connectors/uazapi";
+import { isApifyEnabled } from "@/lib/connectors/apify-config";
 import { fetchWithTimeout, normalizePhoneForWhatsApp } from "@/lib/connectors/utils";
 import { logger } from "@/lib/logger";
 
@@ -127,7 +128,7 @@ async function trySiteScrape(website: string): Promise<PhoneEnrichmentResult> {
  * (Mesma abordagem anterior, mas agora só como fallback final e com validação.)
  */
 async function tryApifySearch(lead: LeadRecord): Promise<PhoneEnrichmentResult> {
-  if (!APIFY_TOKEN) return { phone: null, jid: null, source: null };
+  if (!isApifyEnabled()) return { phone: null, jid: null, source: null };
 
   const query = `"${lead.company}" ${lead.region} whatsapp celular contato`;
 
@@ -201,7 +202,7 @@ async function tryApifySearch(lead: LeadRecord): Promise<PhoneEnrichmentResult> 
  * Retorna a primeira URL de perfil (ignora /p/ e /reel/) ou null.
  */
 async function findInstagramProfileUrl(lead: LeadRecord): Promise<string | null> {
-  if (!APIFY_TOKEN) return null;
+  if (!isApifyEnabled()) return null;
 
   const location = lead.region ?? "";
   const query = `site:instagram.com "${lead.company}" ${location} -site:instagram.com/p/ -site:instagram.com/reel/`;
@@ -278,7 +279,7 @@ async function findInstagramProfileUrl(lead: LeadRecord): Promise<string | null>
  * Descobre o perfil e usa um profile-scraper do Apify para ler a bio.
  */
 async function tryInstagramBio(lead: LeadRecord): Promise<PhoneEnrichmentResult> {
-  if (!APIFY_TOKEN) return { phone: null, jid: null, source: null };
+  if (!isApifyEnabled()) return { phone: null, jid: null, source: null };
 
   const profileUrl = await findInstagramProfileUrl(lead);
   if (!profileUrl) return { phone: null, jid: null, source: null };

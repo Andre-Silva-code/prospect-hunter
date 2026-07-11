@@ -1,25 +1,52 @@
 import type { ProspectSearchRequest, ProspectSearchResult } from "./types";
 import { GooglePlacesResponseSchema } from "./types";
 import { searchApifyGoogleConnector } from "./apify";
+import { isApifyEnabled } from "./apify-config";
 import { normalizeGooglePlace } from "./normalizers";
 
+/**
+ * Busca leads GMN/Google Maps.
+ *
+ * Fonte PRIMÁRIA: Google Places API oficial (barata/estável, dentro da cota
+ * gratuita para volumes moderados). O Apify é apenas fallback OPCIONAL — só é
+ * consultado se estiver habilitado (isApifyEnabled) e a Places API não retornar
+ * nada. Isso evita o desperdício de tentar o Apify (que pode dar 402) toda vez.
+ */
 export async function searchGooglePlaces(
   source: "Google Maps" | "Google Meu Negócio",
   request: ProspectSearchRequest
 ): Promise<{ results: ProspectSearchResult[]; status: string }> {
-  const apifyResult = await searchApifyGoogleConnector(source, request);
-  if (apifyResult.status !== "Sem conector configurado" && apifyResult.results.length > 0) {
-    return apifyResult;
+  // 1) Fonte primária: Google Places API oficial
+  const placesResult = await searchGooglePlacesApi(source, request);
+  if (placesResult.results.length > 0) {
+    return placesResult;
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    if (apifyResult.status !== "Sem conector configurado") {
+  // 2) Fallback opcional: Apify (só se habilitado)
+  if (isApifyEnabled()) {
+    const apifyResult = await searchApifyGoogleConnector(source, request);
+    if (apifyResult.results.length > 0) {
       return {
         results: apifyResult.results,
-        status: `${apifyResult.status} | fallback Google Places indisponivel (GOOGLE_MAPS_API_KEY nao configurada)`,
+        status: `${placesResult.status} | fallback Apify: ${apifyResult.results.length} lead(s)`,
       };
     }
+  }
+
+  // Nenhuma fonte retornou — devolve o status da Places API (mais informativo)
+  return placesResult;
+}
+
+/**
+ * Consulta a Google Places API (searchText). Retorna results vazios com um
+ * status descritivo se a chave não estiver configurada ou a API falhar.
+ */
+async function searchGooglePlacesApi(
+  source: "Google Maps" | "Google Meu Negócio",
+  request: ProspectSearchRequest
+): Promise<{ results: ProspectSearchResult[]; status: string }> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
     return { results: [], status: "GOOGLE_MAPS_API_KEY nao configurada" };
   }
 
@@ -64,14 +91,9 @@ export async function searchGooglePlaces(
       .map((place, index) => normalizeGooglePlace(place, source, request, index))
       .filter((item): item is ProspectSearchResult => item !== null);
 
-    const fallbackPrefix =
-      apifyResult.status !== "Sem conector configurado"
-        ? `${apifyResult.status} | fallback Google Places: `
-        : "";
-
     return {
       results,
-      status: `${fallbackPrefix}${results.length} lead(s) encontrado(s)`,
+      status: `${results.length} lead(s) encontrado(s) via Google Places`,
     };
   } catch {
     return { results: [], status: "Falha ao consultar Google Places" };
