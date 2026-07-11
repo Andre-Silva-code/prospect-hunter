@@ -208,12 +208,21 @@ export function OutreachStatusSection({ leads }: Props) {
     try {
       const res = await fetch("/api/outreach/enrich-phones", { method: "POST" });
       if (res.ok) {
-        const data = (await res.json()) as { requeued: number; notFound: number; total: number };
+        const data = (await res.json()) as {
+          requeued: number;
+          notFound: number;
+          total: number;
+          remaining?: number;
+        };
         if (data.total === 0) {
           setProcessResult("Nenhum número inválido para enriquecer");
         } else {
+          const remainingMsg =
+            data.remaining && data.remaining > 0
+              ? ` · faltam ${data.remaining} (clique de novo para continuar)`
+              : "";
           setProcessResult(
-            `Busca concluída: ${data.requeued} celular(es) encontrado(s) · ${data.notFound} sem resultado`
+            `Lote processado: ${data.requeued} WhatsApp encontrado(s) · ${data.notFound} sem resultado${remainingMsg}`
           );
         }
         await fetchItems();

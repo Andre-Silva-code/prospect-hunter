@@ -39,11 +39,17 @@ async function trigger(path: string): Promise<void> {
     return;
   }
 
+  // Timeout generoso (5 min) — o enrich-phones processa um lote de leads que
+  // pode passar por várias camadas lentas. Evita que uma chamada travada fique
+  // pendurada indefinidamente.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
   try {
     const res = await fetch(`${getBaseUrl()}${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${secret}` },
       cache: "no-store",
+      signal: controller.signal,
     });
     if (!res.ok) {
       logger.warn("[scheduler] disparo retornou status não-ok", { path, status: res.status });
@@ -56,6 +62,8 @@ async function trigger(path: string): Promise<void> {
       path,
       error: error instanceof Error ? error.message : "unknown",
     });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

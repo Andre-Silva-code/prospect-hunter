@@ -30,11 +30,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   const userId = sessionUser?.id ?? "local-dev-user";
 
   try {
-    const invalidItems = await getQueueItemsByStatus(userId, "phone_invalid");
+    const allInvalidItems = await getQueueItemsByStatus(userId, "phone_invalid");
 
-    if (invalidItems.length === 0) {
+    if (allInvalidItems.length === 0) {
       return NextResponse.json({ message: "Nenhum item phone_invalid encontrado", results: [] });
     }
+
+    // Processa em LOTES pequenos por execução. Cada lead pode passar por até 4
+    // camadas (incluindo abrir o Instagram), o que é lento — processar todos de
+    // uma vez estoura o timeout do proxy (EasyPanel corta requisições longas).
+    // Os itens restantes são processados nas execuções seguintes (agendador a
+    // cada 30min ou cliques repetidos no botão).
+    const batchSize = Math.max(1, parseInt(process.env.ENRICH_BATCH_SIZE ?? "5", 10) || 5);
+    const invalidItems = allInvalidItems.slice(0, batchSize);
+    const remaining = allInvalidItems.length - invalidItems.length;
 
     const leads = await listLeads(userId);
     const leadMap = new Map(leads.map((l) => [l.id, l]));
@@ -48,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Telefone atual do lead (tipicamente o fixo do Google) para a Camada 1
       const currentPhone = extractPhoneFromContact(lead.contact);
 
-      logger.info("Enriquecendo WhatsApp (3 camadas)", {
+      logger.info("Enriquecendo WhatsApp (4 camadas)", {
         leadId: lead.id,
         company: lead.company,
       });
@@ -109,7 +118,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     const requeued = results.filter((r) => r.action === "requeued").length;
     const notFound = results.filter((r) => r.action === "not_found").length;
 
-    return NextResponse.json({ total: invalidItems.length, requeued, notFound, results });
+    return NextResponse.json({
+      total: invalidItems.length,
+      requeued,
+      notFound,
+      remaining,
+      results,
+    });
   } catch (error) {
     logger.error("enrich-phones error", {
       error: error instanceof Error ? error.message : "unknown",
