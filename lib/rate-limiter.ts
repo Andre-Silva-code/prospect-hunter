@@ -44,9 +44,14 @@ async function checkRateLimitSupabase(
 ): Promise<RateLimitResult> {
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
+  // A tabela rate_limit_buckets tem RLS que bloqueia a anon key (retorna 401 no
+  // UPSERT). Usamos a service role key para as gravações — mesmo padrão da fila
+  // de outreach (lib/outreach-queue.ts). Mantém fallback para a anon key caso a
+  // service role não esteja definida.
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const baseHeaders = {
     apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`,
+    Authorization: `Bearer ${serviceRoleKey ?? supabaseAnonKey}`,
     "Content-Type": "application/json",
   };
 
