@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
-import { getDueOutreachItems, updateQueueItem } from "@/lib/outreach-queue";
+import { getDueOutreachItems, getStuckSendingItems, updateQueueItem } from "@/lib/outreach-queue";
 import { listLeads } from "@/lib/leads-repository";
 import { processScheduledOutreach } from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
@@ -23,9 +23,36 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
+    // Resgate de itens travados: "sending" é um status transitório (dura segundos).
+    // Se o servidor reiniciar/der timeout no meio do envio, o item fica órfão em
+    // "sending" para sempre. Aqui devolvemos para "scheduled" (com scheduledAt
+    // imediato) os que estão presos há mais de 10 min. Como esses itens já têm o
+    // whatsapp_jid verificado, voltam direto para o pool de envio (getDueOutreachItems
+    // busca status=scheduled) e são reprocessados já no ciclo abaixo.
+    const STUCK_THRESHOLD_MIN = 10;
+    const stuck = await getStuckSendingItems(STUCK_THRESHOLD_MIN);
+    if (stuck.length > 0) {
+      const nowIso = new Date().toISOString();
+      for (const item of stuck) {
+        await updateQueueItem(item.id, {
+          status: "scheduled" as OutreachStatus,
+          scheduledAt: nowIso,
+        });
+      }
+      logger.warn("Itens presos em 'sending' resgatados para 'scheduled'", {
+        count: stuck.length,
+        thresholdMin: STUCK_THRESHOLD_MIN,
+      });
+    }
+
     const dueItems = await getDueOutreachItems();
     if (dueItems.length === 0) {
-      return NextResponse.json({ processed: 0, failed: 0, message: "Nada agendado" });
+      return NextResponse.json({
+        processed: 0,
+        failed: 0,
+        rescued: stuck.length,
+        message: "Nada agendado",
+      });
     }
 
     const userIds = [...new Set(dueItems.map((i) => i.userId))];

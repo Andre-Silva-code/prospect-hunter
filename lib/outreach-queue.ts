@@ -10,6 +10,7 @@ type OutreachStorage = {
   getByStatus: (userId: string, status: OutreachStatus) => Promise<OutreachQueueItem[]>;
   getDueItems: () => Promise<OutreachQueueItem[]>;
   getFollowUpDue: (afterStatus: OutreachStatus, daysOld: number) => Promise<OutreachQueueItem[]>;
+  getStuckSending: (minutesOld: number) => Promise<OutreachQueueItem[]>;
   update: (id: string, updates: Partial<OutreachQueueItem>) => Promise<OutreachQueueItem | null>;
   listByUser: (userId: string) => Promise<OutreachQueueItem[]>;
 };
@@ -103,6 +104,16 @@ export async function getFollowUpDueItems(
   return getStorage().getFollowUpDue(afterStatus, daysOld);
 }
 
+/**
+ * Retorna itens presos no status transitório "sending" há mais de `minutesOld`
+ * minutos. Isso acontece quando o servidor reinicia ou dá timeout entre marcar
+ * o item como "sending" e concluir o envio — deixando-o órfão para sempre.
+ * Usado para "resgatar" esses itens de volta para "pending".
+ */
+export async function getStuckSendingItems(minutesOld: number): Promise<OutreachQueueItem[]> {
+  return getStorage().getStuckSending(minutesOld);
+}
+
 export async function updateQueueItem(
   id: string,
   updates: Partial<OutreachQueueItem>
@@ -171,6 +182,12 @@ function createFileStorage(): OutreachStorage {
       const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
       const items = await readFileQueue();
       return items.filter((i) => i.status === afterStatus && i.updatedAt <= cutoff);
+    },
+
+    getStuckSending: async (minutesOld) => {
+      const cutoff = new Date(Date.now() - minutesOld * 60 * 1000).toISOString();
+      const items = await readFileQueue();
+      return items.filter((i) => i.status === "sending" && i.updatedAt <= cutoff);
     },
 
     update: async (id, updates) => {
@@ -278,6 +295,17 @@ function createSupabaseStorage(): OutreachStorage {
       const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
       const response = await fetch(
         `${supabaseUrl}/rest/v1/outreach_queue?status=eq.${encodeURIComponent(afterStatus)}&updated_at=lte.${encodeURIComponent(cutoff)}`,
+        { headers: baseHeaders, cache: "no-store" }
+      );
+      const payload = (await response.json()) as unknown[];
+      if (!Array.isArray(payload)) return [];
+      return payload.map(normalizeRow).filter((i): i is OutreachQueueItem => i !== null);
+    },
+
+    getStuckSending: async (minutesOld) => {
+      const cutoff = new Date(Date.now() - minutesOld * 60 * 1000).toISOString();
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/outreach_queue?status=eq.sending&updated_at=lte.${encodeURIComponent(cutoff)}`,
         { headers: baseHeaders, cache: "no-store" }
       );
       const payload = (await response.json()) as unknown[];
