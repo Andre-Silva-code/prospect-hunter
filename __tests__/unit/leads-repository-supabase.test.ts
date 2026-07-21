@@ -4,7 +4,13 @@ import { createLead, listLeads, updateLeadRecord } from "@/lib/leads-repository"
 import type { LeadRecord } from "@/types/prospecting";
 
 function createResponse(ok: boolean, status: number, payload: unknown): Response {
-  return { ok, status, json: async () => payload } as unknown as Response;
+  // O caminho de erro do repo chama response.text(); o mock precisa provê-lo.
+  return {
+    ok,
+    status,
+    json: async () => payload,
+    text: async () => (typeof payload === "string" ? payload : JSON.stringify(payload)),
+  } as unknown as Response;
 }
 
 function buildLead(id: string): LeadRecord {

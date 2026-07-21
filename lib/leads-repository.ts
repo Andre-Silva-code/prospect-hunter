@@ -103,16 +103,12 @@ function getLeadStorage(): LeadStorage {
   return createSupabaseStorage();
 }
 
-const SUPABASE_URL_FALLBACK = "https://svkcluuloapmotczeuqw.supabase.co";
-const SUPABASE_ANON_KEY_FALLBACK =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2a2NsdXVsb2FwbW90Y3pldXF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MDI1MjksImV4cCI6MjA4ODQ3ODUyOX0.1nbPer0uQ0-fUsljcfIyWK9LihNyg-0c4ptQXClpMjk";
-
 export function getSupabaseUrl(): string {
-  return (process.env.SUPABASE_URL ?? "").trim() || SUPABASE_URL_FALLBACK;
+  return (process.env.SUPABASE_URL ?? "").trim();
 }
 
 export function getSupabaseAnonKey(): string {
-  return (process.env.SUPABASE_ANON_KEY ?? "").trim() || SUPABASE_ANON_KEY_FALLBACK;
+  return (process.env.SUPABASE_ANON_KEY ?? "").trim();
 }
 
 function canUseSupabaseStorage(): boolean {

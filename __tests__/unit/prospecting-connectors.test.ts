@@ -6,6 +6,7 @@ type MockResponse = {
   ok: boolean;
   status: number;
   json: () => Promise<unknown>;
+  text: () => Promise<string>;
 };
 
 function createResponse(ok: boolean, status: number, payload: unknown): Response {
@@ -13,6 +14,7 @@ function createResponse(ok: boolean, status: number, payload: unknown): Response
     ok,
     status,
     json: async () => payload,
+    text: async () => (typeof payload === "string" ? payload : JSON.stringify(payload)),
   };
   return response as unknown as Response;
 }
@@ -121,11 +123,12 @@ describe("prospecting connectors (Apify)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("does not retry on 400 (non-retryable Apify request failure)", async () => {
-    process.env.PROSPECT_APIFY_GOOGLE_MAPS_TASK_ID = "task-gmaps";
+  it("reporta chave ausente sem chamar fetch quando GOOGLE_MAPS_API_KEY nao esta configurada", async () => {
+    // Modelo atual (commit bcc61a8): Google Places é a fonte primária de GMN.
+    // Sem a chave, nem chega a chamar a API — retorna status informativo direto.
+    delete process.env.GOOGLE_MAPS_API_KEY;
 
     const fetchMock = vi.fn();
-    fetchMock.mockResolvedValueOnce(createResponse(false, 400, { error: "bad request" }));
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await searchProspects({
@@ -137,26 +140,15 @@ describe("prospecting connectors (Apify)", () => {
     });
 
     expect(response.results).toHaveLength(0);
-    expect(response.connectorStatus["Google Maps"]).toBe(
-      "Apify indisponivel (400) | fallback Google Places indisponivel (GOOGLE_MAPS_API_KEY nao configurada)"
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.connectorStatus["Google Maps"]).toBe("GOOGLE_MAPS_API_KEY nao configurada");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to Google Places when Apify returns zero results", async () => {
-    process.env.PROSPECT_APIFY_GOOGLE_MAPS_TASK_ID = "task-gmaps";
+  it("busca via Google Places como fonte primária de Google Maps", async () => {
+    // Modelo atual (commit bcc61a8): Places é chamada diretamente, sem passar por Apify.
     process.env.GOOGLE_MAPS_API_KEY = "google-api-key";
 
     const fetchMock = vi.fn();
-    fetchMock.mockResolvedValueOnce(
-      createResponse(true, 200, {
-        data: {
-          status: "SUCCEEDED",
-          defaultDatasetId: "dataset-gmaps",
-        },
-      })
-    );
-    fetchMock.mockResolvedValueOnce(createResponse(true, 200, []));
     fetchMock.mockResolvedValueOnce(
       createResponse(true, 200, {
         places: [
@@ -187,34 +179,20 @@ describe("prospecting connectors (Apify)", () => {
       company: "Clinica Aurora",
       source: "Google Maps",
     });
-    expect(response.connectorStatus["Google Maps"]).toContain(
-      "0 lead(s) via Apify task (verifique input/filtros da task) | fallback Google Places: 1 lead(s) encontrado(s)"
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(String(fetchMock.mock.calls[2]?.[0])).toBe(
+    expect(response.connectorStatus["Google Maps"]).toContain("via Google Places");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
       "https://places.googleapis.com/v1/places:searchText"
     );
   });
 
-  it("falls back to Google Places when Apify returns 401", async () => {
-    process.env.PROSPECT_APIFY_GOOGLE_MAPS_TASK_ID = "task-gmaps";
+  it("propaga erro da Google Places API quando a chamada falha", async () => {
+    // Modelo atual (commit bcc61a8): sem fallback Apify por padrão, o erro da
+    // Places API é reportado diretamente no status, sem resultados.
     process.env.GOOGLE_MAPS_API_KEY = "google-api-key";
 
     const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce(createResponse(false, 401, { error: "unauthorized" }));
-    fetchMock.mockResolvedValueOnce(
-      createResponse(true, 200, {
-        places: [
-          {
-            displayName: { text: "Clinica Horizonte" },
-            googleMapsUri: "https://maps.google.com/?cid=999",
-            formattedAddress: "Campinas, SP",
-            rating: 4.6,
-            userRatingCount: 112,
-          },
-        ],
-      })
-    );
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await searchProspects({
@@ -225,16 +203,9 @@ describe("prospecting connectors (Apify)", () => {
       limitPerSource: 5,
     });
 
-    expect(response.results).toHaveLength(1);
-    expect(response.results[0]).toMatchObject({
-      company: "Clinica Horizonte",
-      source: "Google Maps",
-    });
-    expect(response.connectorStatus["Google Maps"]).toContain(
-      "Apify indisponivel (401) | fallback Google Places: 1 lead(s) encontrado(s)"
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+    expect(response.results).toHaveLength(0);
+    expect(response.connectorStatus["Google Maps"]).toContain("Google Places indisponivel (401)");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
       "https://places.googleapis.com/v1/places:searchText"
     );
   });
