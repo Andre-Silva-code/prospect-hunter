@@ -56,7 +56,7 @@ describe("Prospecting page - GMN audit flow", () => {
         } as Response;
       }
 
-      if (url.startsWith("/api/outreach/check?phone=") && method === "GET") {
+      if (url.startsWith("/api/outreach/check?contact=") && method === "GET") {
         return {
           ok: true,
           status: 200,
@@ -90,7 +90,7 @@ describe("Prospecting page - GMN audit flow", () => {
 
     await waitFor(() => {
       const hasCheckCall = fetchMock.mock.calls.some(([input]) =>
-        String(input).startsWith("/api/outreach/check?phone=")
+        String(input).startsWith("/api/outreach/check?contact=")
       );
       expect(hasCheckCall).toBe(true);
     });

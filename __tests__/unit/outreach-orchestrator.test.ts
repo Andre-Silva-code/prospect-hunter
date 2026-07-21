@@ -57,6 +57,9 @@ describe("outreach-orchestrator", () => {
     vi.clearAllMocks();
     process.env = {
       ...originalEnv,
+      // Reafirma o storage local no beforeEach: outros testes reatribuem
+      // process.env inteiro e podem ter apagado esta flag antes deste rodar.
+      USE_LOCAL_STORAGE: "true",
       UAZAPI_API_URL: "https://api.uazapi.test",
       UAZAPI_API_TOKEN: "test-token",
       UAZAPI_INSTANCE_ID: "test-instance",

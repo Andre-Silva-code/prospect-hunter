@@ -20,6 +20,10 @@ vi.mock("@/lib/leads-repository", () => ({
   createLead: vi.fn(),
   listLeads: vi.fn(),
   updateLeadRecord: vi.fn(),
+  // auth-session importa estas funções do repo; sem elas no mock, o caminho de
+  // autenticação quebra com "No export defined" e as rotas retornam 500.
+  getSupabaseUrl: vi.fn(() => ""),
+  getSupabaseAnonKey: vi.fn(() => ""),
 }));
 
 vi.mock("@/lib/prospecting-connectors", () => ({
@@ -72,6 +76,7 @@ describe("API routes auth and authorization", () => {
       name: "Operador",
       email: "op@example.com",
     });
+    vi.mocked(listLeads).mockResolvedValue([]);
     vi.mocked(createLead).mockResolvedValue(buildLead());
 
     const request = new Request("http://localhost/api/leads", {
@@ -98,6 +103,7 @@ describe("API routes auth and authorization", () => {
       name: "Operador",
       email: "op@example.com",
     });
+    vi.mocked(listLeads).mockResolvedValue([]);
     vi.mocked(createLead).mockRejectedValue(new Error("insert failed"));
 
     const request = new Request("http://localhost/api/leads", {
@@ -111,8 +117,10 @@ describe("API routes auth and authorization", () => {
     const response = await postLeads(request);
     const payload = (await response.json()) as { error: string };
 
-    expect(response.status).toBe(502);
-    expect(payload.error).toContain("Failed to create lead");
+    // A rota expõe o erro real (commit 0cdb3d5: "expoe erro real do Supabase
+    // em vez de 502 generico") — status 500 com a mensagem do upstream.
+    expect(response.status).toBe(500);
+    expect(payload.error).toContain("insert failed");
   });
 
   it("rejects lead PATCH when session is missing", async () => {

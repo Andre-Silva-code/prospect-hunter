@@ -1,4 +1,5 @@
 import type { LeadSource } from "@/types/prospecting";
+import { qualifyLead } from "@/lib/lead-qualification";
 import type {
   GenericConnectorItem,
   GooglePlace,
@@ -234,6 +235,16 @@ export function normalizeGooglePlace(
   const address = place.formattedAddress ?? request.region;
   const mapsUrl = place.googleMapsUri;
 
+  // Qualificação de fit (Tarefa B): resultado do Google Places sempre tem perfil
+  // GMN (Funil A). Sinais derivados dos dados reais do place.
+  const qualification = qualifyLead({
+    hasGoogleProfile: true,
+    hasWebsite: website.length > 0,
+    hasValidPhone: phone.length > 0,
+    rating,
+    reviewCount: ratingCount,
+  });
+
   return {
     id: `${source}-${index}-${hash(`${company}-${address}`)}`,
     company,
@@ -250,6 +261,9 @@ export function normalizeGooglePlace(
       source === "Google Meu Negócio"
         ? `https://www.google.com/search?q=${encodeURIComponent(company + " " + (address || request.region))}`
         : mapsUrl,
+    qualificationScore: qualification.qualificationScore,
+    funnel: qualification.funnel,
+    contactable: qualification.contactable,
   };
 }
 

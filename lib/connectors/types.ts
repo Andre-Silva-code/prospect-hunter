@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { LeadPriority, LeadSource } from "@/types/prospecting";
+import type { QualificationFunnel } from "@/lib/lead-qualification";
 
 export type ProspectSearchResult = {
   id: string;
@@ -14,6 +15,11 @@ export type ProspectSearchResult = {
   icp: string;
   contact: string;
   sourceUrl?: string;
+  // Qualificação de fit comercial (Tarefa B). Opcionais: só populados pelos
+  // connectors que têm os sinais necessários. Não substituem `score` (popularidade).
+  qualificationScore?: number;
+  funnel?: QualificationFunnel;
+  contactable?: boolean;
 };
 
 export type ProspectSearchRequest = {
