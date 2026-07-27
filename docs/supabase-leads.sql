@@ -83,6 +83,11 @@ alter table public.leads add column if not exists follow_up_step integer;
 alter table public.leads add column if not exists next_follow_up_at timestamptz;
 alter table public.leads add column if not exists last_contact_at timestamptz;
 
+-- Qualificação de fit comercial (Tarefa B): score 0–100, funil "A"/"B" e se é abordável.
+alter table public.leads add column if not exists qualification_score integer;
+alter table public.leads add column if not exists funnel text;
+alter table public.leads add column if not exists contactable boolean;
+
 -- 4) Normalize required data constraints.
 update public.leads
 set user_id = 'owner'

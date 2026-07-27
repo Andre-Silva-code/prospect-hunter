@@ -1,4 +1,6 @@
-import type { LeadPriority } from "@/types/prospecting";
+import type { LeadPriority, QualificationFunnel } from "@/types/prospecting";
+
+export type { QualificationFunnel };
 
 /**
  * Qualificação de leads para o serviço de Gestão de Google Meu Negócio (L3A Digital).
@@ -26,8 +28,6 @@ export type QualificationSignals = {
   /** Telefone/WhatsApp normalizado e válido? Sem contato, a cadência trava. */
   hasValidPhone?: boolean;
 };
-
-export type QualificationFunnel = "A" | "B";
 
 export type QualificationResult = {
   /** Score de fit comercial de 0 a 100 (quanto maior, melhor o lead para a L3A). */

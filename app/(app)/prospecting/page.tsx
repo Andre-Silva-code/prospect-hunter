@@ -393,6 +393,9 @@ export default function ProspectingPage() {
       followUpStep: 0,
       nextFollowUpAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
       lastContactAt: null,
+      qualificationScore: lead.qualificationScore,
+      funnel: lead.funnel,
+      contactable: lead.contactable,
     };
 
     try {
@@ -544,6 +547,9 @@ export default function ProspectingPage() {
         followUpStep: 0,
         nextFollowUpAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         lastContactAt: null,
+        qualificationScore: lead.qualificationScore,
+        funnel: lead.funnel,
+        contactable: lead.contactable,
       };
 
       const res = await fetch("/api/leads", {

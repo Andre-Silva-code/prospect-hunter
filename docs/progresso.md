@@ -116,4 +116,8 @@
       após 2 follow-ups sem resposta e notifica o dono.
       → Nenhum código novo necessário — o gap do progresso.md (escrito em abr/2026) já foi
       coberto pela evolução do sistema.
-- [ ] Detalhar processo de onboarding pós-venda
+- [~] Detalhar processo de onboarding pós-venda — PROPOSTA criada (2026-07-21)
+  → `docs/onboarding-pos-venda.md`: fluxo Dia 0 → Dia 30 (boas-vindas, coleta de
+  acessos GMN, setup, check-ins, relatório de 1 mês).
+  → Aguarda 4 decisões da L3A (automação, coleta de acesso, entregável do Dia 30,
+  gatilho) antes de virar código. Não implementado — é definição de processo.

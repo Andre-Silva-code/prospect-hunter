@@ -1,4 +1,4 @@
-import type { LeadPriority, LeadSource } from "@/types/prospecting";
+import type { LeadPriority, LeadSource, QualificationFunnel } from "@/types/prospecting";
 
 export type IcpOption = {
   value: string;
@@ -20,6 +20,11 @@ export type ProspectResult = {
   icp: string;
   contact: string;
   sourceUrl?: string;
+  // Qualificação de fit comercial (Tarefa B). Opcionais: só populados quando o
+  // connector fornece os sinais. Não substituem `score` (popularidade).
+  qualificationScore?: number;
+  funnel?: QualificationFunnel;
+  contactable?: boolean;
 };
 
 export type SortField = "score" | "priority" | "company" | "source";
