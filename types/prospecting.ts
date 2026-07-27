@@ -3,6 +3,8 @@ export type LeadPriority = "Alta" | "Media" | "Baixa";
 export type ContactStatus = "Pendente" | "Mensagem enviada" | "Respondeu";
 export type LeadSource = "Instagram" | "LinkedIn" | "Google Maps" | "Google Meu Negócio";
 export type IcpProfile = string;
+/** Funil comercial recomendado: "A" (empresa com perfil GMN) ou "B" (sem perfil GMN). */
+export type QualificationFunnel = "A" | "B";
 
 export type LeadFormValues = {
   company: string;
@@ -31,4 +33,9 @@ export type LeadRecord = LeadFormValues & {
   proposalEnteredAt?: string | null;
   proposalFollowUpStep?: number;
   reactivationSentAt?: string | null;
+  // Qualificação de fit comercial (Tarefa B). Opcionais: só populados quando o
+  // connector fornece os sinais. Não substituem `score` (popularidade).
+  qualificationScore?: number;
+  funnel?: QualificationFunnel;
+  contactable?: boolean;
 };

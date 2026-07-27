@@ -54,6 +54,9 @@ function buildSupabaseRow(lead: LeadRecord) {
     follow_up_step: lead.followUpStep ?? null,
     next_follow_up_at: lead.nextFollowUpAt ?? null,
     last_contact_at: lead.lastContactAt ?? null,
+    qualification_score: lead.qualificationScore ?? null,
+    funnel: lead.funnel ?? null,
+    contactable: lead.contactable ?? null,
   };
 }
 
@@ -94,6 +97,33 @@ describe("leads repository (Supabase storage)", () => {
     const body = JSON.parse(options.body);
     expect(body.company).toBe("Lead lead-sb-1");
     expect(body.user_id).toBe("user-1");
+  });
+
+  it("grava e relê os campos de qualificação de fit comercial (Tarefa B)", async () => {
+    const lead: LeadRecord = {
+      ...buildLead("lead-qual-1"),
+      qualificationScore: 64,
+      funnel: "B",
+      contactable: true,
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(createResponse(true, 201, [buildSupabaseRow(lead)]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createLead("user-1", lead);
+
+    // Gravação: os campos vão no corpo do INSERT (snake_case).
+    const [, options] = fetchMock.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.qualification_score).toBe(64);
+    expect(body.funnel).toBe("B");
+    expect(body.contactable).toBe(true);
+
+    // Leitura: os campos voltam mapeados para o LeadRecord.
+    expect(result.qualificationScore).toBe(64);
+    expect(result.funnel).toBe("B");
+    expect(result.contactable).toBe(true);
   });
 
   it("throws when Supabase insert fails", async () => {

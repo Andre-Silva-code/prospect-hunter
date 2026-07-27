@@ -37,6 +37,9 @@ type SupabaseLeadRow = {
   proposal_entered_at?: string | null;
   proposal_follow_up_step?: number | null;
   reactivation_sent_at?: string | null;
+  qualification_score?: number | null;
+  funnel?: string | null;
+  contactable?: boolean | null;
 };
 
 const dataDirectory = path.join(process.cwd(), "data");
@@ -69,7 +72,7 @@ export async function listAllLeads(): Promise<LeadRecord[]> {
     const supabaseUrl = getSupabaseUrl();
     const supabaseAnonKey = getSupabaseAnonKey();
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at`,
+      `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at,qualificationScore:qualification_score,funnel,contactable`,
       {
         headers: {
           apikey: supabaseAnonKey,
@@ -203,7 +206,7 @@ function createSupabaseStorage(): LeadStorage {
     listLeads: async (userId) => {
       const baseHeaders = getSupabaseAuthHeaders();
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at&user_id=eq.${encodeURIComponent(userId)}`,
+        `${supabaseUrl}/rest/v1/leads?select=id,userId:user_id,company,niche,region,monthlyBudget:monthly_budget,contact,trigger,stage,score,priority,message,contactStatus:contact_status,createdAt:created_at,source,icp,followUpIntervalDays:follow_up_interval_days,followUpStep:follow_up_step,nextFollowUpAt:next_follow_up_at,lastContactAt:last_contact_at,proposalEnteredAt:proposal_entered_at,proposalFollowUpStep:proposal_follow_up_step,reactivationSentAt:reactivation_sent_at,qualificationScore:qualification_score,funnel,contactable&user_id=eq.${encodeURIComponent(userId)}`,
         {
           headers: baseHeaders,
           cache: "no-store",
@@ -272,6 +275,9 @@ function toSupabaseLeadRow(lead: LeadRecord): SupabaseLeadRow {
     follow_up_step: lead.followUpStep ?? null,
     next_follow_up_at: lead.nextFollowUpAt ?? null,
     last_contact_at: lead.lastContactAt ?? null,
+    qualification_score: lead.qualificationScore ?? null,
+    funnel: lead.funnel ?? null,
+    contactable: lead.contactable ?? null,
   };
 }
 
@@ -311,6 +317,11 @@ function toSupabaseLeadPatch(updates: Partial<LeadRecord>): Partial<SupabaseLead
   if (typeof updates.reactivationSentAt === "string" || updates.reactivationSentAt === null) {
     patch.reactivation_sent_at = updates.reactivationSentAt;
   }
+  if (typeof updates.qualificationScore === "number") {
+    patch.qualification_score = updates.qualificationScore;
+  }
+  if (typeof updates.funnel === "string") patch.funnel = updates.funnel;
+  if (typeof updates.contactable === "boolean") patch.contactable = updates.contactable;
 
   return patch;
 }
@@ -410,6 +421,9 @@ function normalizeLeadRecord(value: unknown): LeadRecord | null {
     proposalEnteredAt: getNullableString(record, "proposalEnteredAt", "proposal_entered_at"),
     proposalFollowUpStep: getNumber(record, "proposalFollowUpStep", "proposal_follow_up_step") ?? 0,
     reactivationSentAt: getNullableString(record, "reactivationSentAt", "reactivation_sent_at"),
+    qualificationScore: getNumber(record, "qualificationScore", "qualification_score") ?? undefined,
+    funnel: (getString(record, "funnel") as LeadRecord["funnel"]) ?? undefined,
+    contactable: getBoolean(record, "contactable") ?? undefined,
   };
 }
 
@@ -439,6 +453,17 @@ function getNumber(record: Record<string, unknown>, ...keys: string[]): number |
   for (const key of keys) {
     const value = record[key];
     if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getBoolean(record: Record<string, unknown>, ...keys: string[]): boolean | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "boolean") {
       return value;
     }
   }
