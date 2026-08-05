@@ -71,55 +71,160 @@ export function extractPhonesFromText(text: string): string[] {
 }
 
 /**
- * Camada 1 — Testa o telefone que o lead JÁ tem (tipicamente o fixo do Google)
- * diretamente no WhatsApp. Muitos negócios usam WhatsApp Business no número fixo.
+ * A partir de um número fixo brasileiro (10 dígitos após o 55: DDD + 8 dígitos),
+ * gera o celular provável adicionando o 9º dígito. Muitos negócios migraram o
+ * WhatsApp do fixo antigo para o celular equivalente. Retorna null quando não é
+ * um fixo elegível (ex.: já é celular, 0800, ou formato inesperado).
  */
-async function tryExistingPhone(currentPhone: string): Promise<PhoneEnrichmentResult> {
-  const normalized = normalizePhoneForWhatsApp(currentPhone);
-  if (!normalized) return { phone: null, jid: null, source: null };
+function nineDigitVariant(normalized: string): string | null {
+  if (!normalized.startsWith("55")) return null;
+  const local = normalized.slice(2); // DDD + número
+  // Fixo: 10 dígitos (DDD + 8). Primeiro dígito do número não pode já ser 9.
+  if (local.length !== 10) return null;
+  const ddd = local.slice(0, 2);
+  const subscriber = local.slice(2); // 8 dígitos
+  // 0800/serviços não têm variante de celular
+  if (ddd.startsWith("0")) return null;
+  // Fixos começam com 2–5; celulares com 6–9. Só faz sentido "promover" fixos.
+  if (!/[2-5]/.test(subscriber[0])) return null;
+  return `55${ddd}9${subscriber}`;
+}
 
-  const check = await checkWhatsAppNumber(normalized);
-  if (check.exists) {
-    return { phone: normalized, jid: check.jid, source: "fixo-google" };
+/**
+ * Coleta todos os candidatos de telefone que já conhecemos do lead, sem custo
+ * de rede: cada telefone presente no campo `contact` (fixo E celular) mais a
+ * variante de 9º dígito de cada fixo. Ordena celulares primeiro (mais provável
+ * de ser WhatsApp), depois fixos, sem duplicatas.
+ */
+export function collectKnownPhoneCandidates(
+  contact: string,
+  currentPhone: string | null
+): string[] {
+  const fromContact = extractPhonesFromText(contact);
+  const base: string[] = [];
+  if (currentPhone) {
+    const n = normalizePhoneForWhatsApp(currentPhone);
+    if (n) base.push(n);
+  }
+  base.push(...fromContact);
+
+  const withVariants: string[] = [];
+  for (const phone of base) {
+    withVariants.push(phone);
+    const variant = nineDigitVariant(phone);
+    if (variant) withVariants.push(variant);
+  }
+
+  // Reordena: celulares (11 dígitos locais com 9) antes de fixos.
+  const cells: string[] = [];
+  const fixed: string[] = [];
+  for (const p of withVariants) {
+    const local = p.startsWith("55") ? p.slice(2) : p;
+    if (local.length === 11 && local[2] === "9") cells.push(p);
+    else fixed.push(p);
+  }
+  return [...new Set([...cells, ...fixed])];
+}
+
+/**
+ * Camada 1 — Testa os telefones que o lead JÁ tem no WhatsApp, sem custo de API
+ * externa. Cobre: (a) todos os telefones do campo `contact` — fixo e celular,
+ * não só o primeiro; e (b) a variante de 9º dígito de fixos, já que muitos
+ * negócios migraram o WhatsApp para o celular equivalente.
+ */
+async function tryExistingPhones(
+  contact: string,
+  currentPhone: string | null
+): Promise<PhoneEnrichmentResult> {
+  const candidates = collectKnownPhoneCandidates(contact, currentPhone);
+
+  // Limita para não estourar chamadas ao UAZAPI num lead com muitos números.
+  for (const candidate of candidates.slice(0, 6)) {
+    const check = await checkWhatsAppNumber(candidate);
+    if (check.exists) {
+      return { phone: candidate, jid: check.jid, source: "fixo-google" };
+    }
   }
   return { phone: null, jid: null, source: null };
 }
 
-/**
- * Camada 2 — Faz fetch do site do próprio lead e procura WhatsApp/telefone
- * no HTML (rodapé, botão flutuante, página de contato). Custo zero.
- */
-async function trySiteScrape(website: string): Promise<PhoneEnrichmentResult> {
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
+
+/** Faz fetch de uma URL e devolve o HTML, ou null em qualquer falha. */
+async function fetchHtml(url: string): Promise<string | null> {
   try {
     const response = await fetchWithTimeout(
-      website,
-      {
-        headers: {
-          // User-agent de browser real para evitar bloqueios simples
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        },
-        cache: "no-store",
-      },
+      url,
+      { headers: { "User-Agent": BROWSER_UA }, cache: "no-store" },
       15_000
     );
+    if (!response.ok) return null;
+    return await response.text();
+  } catch {
+    return null;
+  }
+}
 
-    if (!response.ok) return { phone: null, jid: null, source: null };
+/**
+ * Descobre páginas internas de contato a partir do HTML da home. O WhatsApp
+ * costuma morar em /contato, /fale-conosco ou no link wa.me do botão flutuante,
+ * não na home. Retorna URLs absolutas (no máximo 2), deduplicadas.
+ */
+function findContactLinks(html: string, baseUrl: string): string[] {
+  const hrefs = [...html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]);
+  const wanted = /(contato|fale-?conosco|fale-?com|contact|atendimento|whatsapp|wa\.me)/i;
+  const found: string[] = [];
 
-    const html = await response.text();
-    const candidates = extractPhonesFromText(html);
+  for (const href of hrefs) {
+    if (!wanted.test(href)) continue;
+    // Links wa.me/tel: já contêm o número — tratados na extração de texto direto.
+    if (/^(tel:|mailto:)/i.test(href)) continue;
+    try {
+      const abs = new URL(href, baseUrl).toString();
+      // Só segue links http(s) do mesmo host (evita sair para redes sociais aqui).
+      if (!/^https?:/i.test(abs)) continue;
+      found.push(abs);
+    } catch {
+      // href inválido — ignora
+    }
+  }
+  return [...new Set(found)].slice(0, 2);
+}
 
-    // Valida cada candidato no WhatsApp até achar um que exista
+/**
+ * Camada 2 — Faz fetch do site do próprio lead e procura WhatsApp/telefone no
+ * HTML (rodapé, botão flutuante, links wa.me). Se a home não render, segue 1-2
+ * páginas internas de contato (/contato, /fale-conosco). Custo zero.
+ */
+async function trySiteScrape(website: string): Promise<PhoneEnrichmentResult> {
+  const homeHtml = await fetchHtml(website);
+  if (!homeHtml) return { phone: null, jid: null, source: null };
+
+  // 1ª passada: a própria home (inclui links wa.me embutidos).
+  const homeCandidates = extractPhonesFromText(homeHtml);
+  for (const candidate of homeCandidates.slice(0, 5)) {
+    const check = await checkWhatsAppNumber(candidate);
+    if (check.exists) {
+      return { phone: candidate, jid: check.jid, source: "site-do-lead" };
+    }
+  }
+
+  // 2ª passada: páginas internas de contato descobertas na home.
+  const contactLinks = findContactLinks(homeHtml, website);
+  for (const link of contactLinks) {
+    const pageHtml = await fetchHtml(link);
+    if (!pageHtml) continue;
+    const candidates = extractPhonesFromText(pageHtml);
     for (const candidate of candidates.slice(0, 5)) {
       const check = await checkWhatsAppNumber(candidate);
       if (check.exists) {
         return { phone: candidate, jid: check.jid, source: "site-do-lead" };
       }
     }
-    return { phone: null, jid: null, source: null };
-  } catch {
-    return { phone: null, jid: null, source: null };
   }
+
+  return { phone: null, jid: null, source: null };
 }
 
 /**
@@ -368,16 +473,15 @@ export async function enrichLeadPhone(
   lead: LeadRecord,
   currentPhone: string | null
 ): Promise<PhoneEnrichmentResult> {
-  // Camada 1: o próprio fixo do Google pode ter WhatsApp Business
-  if (currentPhone) {
-    const layer1 = await tryExistingPhone(currentPhone);
-    if (layer1.phone) {
-      logger.info("WhatsApp encontrado no fixo do Google", {
-        leadId: lead.id,
-        company: lead.company,
-      });
-      return layer1;
-    }
+  // Camada 1: telefones que já conhecemos (fixo E celular do Google/contact),
+  // mais a variante de 9º dígito de fixos. Tudo sem custo de API externa.
+  const layer1 = await tryExistingPhones(lead.contact, currentPhone);
+  if (layer1.phone) {
+    logger.info("WhatsApp encontrado nos telefones conhecidos do lead", {
+      leadId: lead.id,
+      company: lead.company,
+    });
+    return layer1;
   }
 
   // Camada 2: site do próprio lead (websiteUri já vem no campo contact)
