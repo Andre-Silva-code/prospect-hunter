@@ -94,11 +94,11 @@ export function nextBusinessMoment(date: Date = new Date()): Date {
     return date; // já está em horário comercial
   }
 
-  // Calcular quantos dias avançar até o próximo dia útil
-  let daysAhead = 0;
+  // Calcular quantos dias avançar até o próximo dia útil (contando em SP).
+  let daysAhead: number;
 
   if (isWeekday && hour < OPEN_HOUR) {
-    // Hoje é dia útil mas ainda não abriu → enviar hoje às 08:00
+    // Hoje é dia útil mas ainda não abriu → abrir hoje às 08:00
     daysAhead = 0;
   } else {
     // Passou das 18:00 ou é fim de semana → próximo dia útil
@@ -110,35 +110,39 @@ export function nextBusinessMoment(date: Date = new Date()): Date {
     }
   }
 
-  // Montar a data alvo: dia calculado às 08:00 horário de SP
-  // Estratégia: pegar a data UTC do "início do dia SP" e somar as horas abertas
-  const target = new Date(date);
-  target.setUTCDate(target.getUTCDate() + daysAhead);
-
-  // Zerar para meia-noite UTC e depois ajustar para 08:00 SP
-  // SP é UTC-3 (BRT) — podendo ser UTC-2 no horário de verão
-  // Usamos Intl para descobrir o offset correto no dia alvo
-  const midnightUTC = new Date(
-    Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate(), 0, 0, 0)
-  );
-
-  // Descobrir offset de SP naquele dia
-  const spMidnight = inSaoPaulo(midnightUTC);
-  // Reconstruir meia-noite local SP como UTC
-  // offset = hora UTC que equivale a 00:00 SP
-  const spOffset = findSpOffset(midnightUTC);
-  const openUTC = new Date(
-    midnightUTC.getTime() + OPEN_HOUR * 60 * 60 * 1000 - spOffset * 60 * 60 * 1000
-  );
-
-  // Sanity: garante que não voltamos no tempo
-  if (openUTC < date) {
-    openUTC.setUTCDate(openUTC.getUTCDate() + 1);
-  }
-
-  void spMidnight; // usado indiretamente via findSpOffset
+  // Descobre o dia-calendário em SP correspondente ao instante `date`, depois
+  // avança `daysAhead` dias e constrói "08:00 SP" desse dia-alvo.
+  const sp = inSaoPaulo(date);
+  const openUTC = buildSpMoment(sp.year, sp.month, sp.day, daysAhead, OPEN_HOUR);
 
   return new Date(openUTC.getTime() + jitterMs);
+}
+
+/**
+ * Constrói um instante UTC correspondente a `spHour:00` no fuso de São Paulo,
+ * no dia-calendário (year/month/day em SP) somado de `daysAhead` dias.
+ *
+ * Trata corretamente o offset de SP (UTC-3, ou UTC-2 no horário de verão)
+ * calculando-o no próprio dia-alvo — evitando erros nas viradas de fuso.
+ */
+function buildSpMoment(
+  year: number,
+  month: number, // 1-12
+  day: number,
+  daysAhead: number,
+  spHour: number
+): Date {
+  // Avança os dias usando UTC como calendário neutro (00:00 do dia-alvo).
+  const base = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  base.setUTCDate(base.getUTCDate() + daysAhead);
+
+  // Primeira aproximação: assume o offset do próprio "meio-dia" do dia-alvo
+  // (meio-dia evita ambiguidade nas transições de horário de verão).
+  const noonProbe = new Date(base.getTime() + 12 * 60 * 60 * 1000);
+  const offset = findSpOffset(noonProbe); // ex.: 3 para UTC-3
+
+  // spHour SP = (spHour + offset) UTC no mesmo dia-calendário.
+  return new Date(base.getTime() + (spHour + offset) * 60 * 60 * 1000);
 }
 
 /**
