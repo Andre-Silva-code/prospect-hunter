@@ -2,14 +2,20 @@
 
 Este guia evita o cenário "busca sem resultados" no ambiente local e em produção.
 
+> **Alternativa ao Apify no Instagram:** o Apify não é mais obrigatório para a
+> fonte Instagram. Recomendamos o **Serper.dev** (custo baixo, sem Google Cloud —
+> ver `docs/serper-setup.md`) ou o **Google Custom Search** (gratuito até 100
+> buscas/dia — ver `docs/google-cse-setup.md`). O Apify continua funcionando como
+> reserva. Ordem de prioridade no Instagram: Serper → Google CSE → Apify.
+
 ## Objetivo
 
 Configurar as fontes reais da aba de prospecção:
 
-- Instagram (Apify)
+- Instagram (Serper.dev / Google CSE / Apify — nessa ordem)
 - LinkedIn (Apify)
-- Google Maps (Apify + fallback Google Places)
-- Google Meu Negócio (Apify + fallback Google Places)
+- Google Maps (Google Places + fallback Apify)
+- Google Meu Negócio (Google Places + fallback Apify)
 
 ## 1) Variáveis obrigatórias no `.env.local`
 

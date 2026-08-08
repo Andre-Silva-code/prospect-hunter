@@ -2,6 +2,8 @@ import type { LeadSource } from "@/types/prospecting";
 import type { ProspectSearchRequest, ProspectSearchResponse, ProspectSearchResult } from "./types";
 import { GenericConnectorPayloadSchema } from "./types";
 import { searchApifyConnector } from "./apify";
+import { searchGoogleCseInstagram, isGoogleCseEnabled } from "./google-cse";
+import { searchSerperInstagram, isSerperEnabled } from "./serper";
 import { searchGooglePlaces } from "./google-places";
 import { shouldUseDemoFallback, buildDemoFallbackResults } from "./demo-fallback";
 import { normalizeConnectorItem } from "./normalizers";
@@ -119,6 +121,27 @@ async function searchGenericConnector(
     } catch {
       return { results: [], status: "Falha ao consultar conector" };
     }
+  }
+
+  // Instagram: tenta o Serper.dev (custo baixo, sem Google Cloud) primeiro.
+  if (source === "Instagram" && isSerperEnabled()) {
+    const serperResult = await searchSerperInstagram(request);
+    if (serperResult.results.length > 0) return serperResult;
+    // Serper sem resultados: cai para os fallbacks (CSE / Apify) abaixo.
+  }
+
+  // Instagram: tenta o Google Custom Search (gratuito) antes do Apify.
+  if (source === "Instagram" && isGoogleCseEnabled()) {
+    const cseResult = await searchGoogleCseInstagram(request);
+    if (cseResult.results.length > 0) return cseResult;
+
+    // CSE habilitado mas sem resultados: tenta o Apify como fallback e, se ele
+    // também não estiver configurado, devolve o status informativo da CSE.
+    const apifyFallback = await searchApifyConnector(source, request);
+    if (apifyFallback.status !== "Sem conector configurado") {
+      return apifyFallback.results.length > 0 ? apifyFallback : cseResult;
+    }
+    return cseResult;
   }
 
   const apifyResult = await searchApifyConnector(source, request);
