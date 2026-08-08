@@ -83,6 +83,38 @@ export type GooglePlacesResponse = z.infer<typeof GooglePlacesResponseSchema>;
 
 export const GenericConnectorPayloadSchema = z.array(z.record(z.string(), z.unknown()));
 
+// --- Google Custom Search JSON API schemas ---
+// Cada item traz title/link/snippet — os mesmos campos que o normalizer do
+// Instagram já sabe ler (via aliases "link" e "snippet").
+export const GoogleCseItemSchema = z.object({
+  title: z.string().optional(),
+  link: z.string().optional(),
+  snippet: z.string().optional(),
+});
+export type GoogleCseItem = z.infer<typeof GoogleCseItemSchema>;
+
+export const GoogleCseResponseSchema = z.object({
+  items: z.array(GoogleCseItemSchema).optional(),
+  error: z.object({ message: z.string().optional() }).optional(),
+});
+export type GoogleCseResponse = z.infer<typeof GoogleCseResponseSchema>;
+
+// --- Serper.dev schemas ---
+// Os resultados orgânicos vêm em organic[], cada um com title/link/snippet —
+// os mesmos campos que o normalizer do Instagram já sabe ler.
+export const SerperOrganicItemSchema = z.object({
+  title: z.string().optional(),
+  link: z.string().optional(),
+  snippet: z.string().optional(),
+});
+export type SerperOrganicItem = z.infer<typeof SerperOrganicItemSchema>;
+
+export const SerperResponseSchema = z.object({
+  organic: z.array(SerperOrganicItemSchema).optional(),
+  message: z.string().optional(),
+});
+export type SerperResponse = z.infer<typeof SerperResponseSchema>;
+
 // --- Uazapi WhatsApp API schemas ---
 
 export const UazapiNumberCheckSchema = z.object({

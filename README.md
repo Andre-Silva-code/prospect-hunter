@@ -212,6 +212,8 @@ npm run type-check
 ## 📖 Documentation
 
 - [Real Search Setup (Apify + Google Places)](./docs/real-search-setup.md)
+- [Serper.dev — alternativa de custo baixo ao Apify (Instagram)](./docs/serper-setup.md)
+- [Google Custom Search — alternativa gratuita ao Apify (Instagram)](./docs/google-cse-setup.md)
 - [API Routes Design](./docs/api-spec.md)
 - [Database Schema](./docs/schema.md)
 - [Architecture](./docs/architecture.md)
