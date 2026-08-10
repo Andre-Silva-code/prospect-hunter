@@ -1,7 +1,12 @@
 export type PipelineStage = "Novo" | "Contato" | "Diagnóstico" | "Proposta" | "Fechado" | "Perdido";
 export type LeadPriority = "Alta" | "Media" | "Baixa";
 export type ContactStatus = "Pendente" | "Mensagem enviada" | "Respondeu";
-export type LeadSource = "Instagram" | "LinkedIn" | "Google Maps" | "Google Meu Negócio";
+export type LeadSource =
+  | "Instagram"
+  | "LinkedIn"
+  | "Google Maps"
+  | "Google Meu Negócio"
+  | "Sem Google Meu Negócio";
 export type IcpProfile = string;
 /** Funil comercial recomendado: "A" (empresa com perfil GMN) ou "B" (sem perfil GMN). */
 export type QualificationFunnel = "A" | "B";

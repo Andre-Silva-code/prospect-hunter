@@ -1,5 +1,6 @@
 import type { ProspectSearchRequest, ProspectSearchResult } from "./types";
 import { SerperResponseSchema } from "./types";
+import type { SerperOrganicItem } from "./types";
 import { normalizeApifyItem } from "./normalizers";
 import { fetchWithTimeout, isAbortError, parseIntegerEnv } from "./utils";
 
@@ -27,15 +28,31 @@ function buildInstagramQuery(request: ProspectSearchRequest): string {
   return `site:instagram.com "${request.niche}" "${location}" -site:instagram.com/p/ -site:instagram.com/reel/`;
 }
 
-export async function searchSerperInstagram(
-  request: ProspectSearchRequest
-): Promise<{ results: ProspectSearchResult[]; status: string }> {
-  if (!isSerperEnabled()) return { results: [], status: "Serper desativado" };
+/** Busca páginas de negócios no Facebook. */
+function buildFacebookQuery(request: ProspectSearchRequest): string {
+  const location = request.city ?? request.region;
+  return `site:facebook.com "${request.niche}" "${location}" -site:facebook.com/photo -site:facebook.com/events`;
+}
+
+/** Busca geral no Google (sites, listas, diretórios do nicho). */
+function buildGeneralQuery(request: ProspectSearchRequest): string {
+  const location = request.city ?? request.region;
+  return `${request.niche} ${location}`;
+}
+
+/**
+ * Chamada de baixo nível ao Serper: executa uma query e devolve os itens
+ * orgânicos brutos (title/link/snippet). Reaproveitada por todas as buscas.
+ */
+async function runSerperQuery(
+  query: string,
+  limit: number
+): Promise<{ items: SerperOrganicItem[]; status: string }> {
+  if (!isSerperEnabled()) return { items: [], status: "Serper desativado" };
 
   const apiKey = process.env.SERPER_API_KEY!;
   const timeoutMs = Math.max(1000, parseIntegerEnv("SERPER_REQUEST_TIMEOUT_MS", 15000));
-  const num = Math.min(10, Math.max(1, request.limitPerSource));
-  const query = buildInstagramQuery(request);
+  const num = Math.min(10, Math.max(1, limit));
 
   try {
     const response = await fetchWithTimeout(
@@ -55,36 +72,62 @@ export async function searchSerperInstagram(
     if (!response.ok) {
       const body = await response.text().catch(() => "");
       const detail = body ? ` — ${body.slice(0, 160)}` : "";
-      return { results: [], status: `Serper indisponivel (${response.status})${detail}` };
+      return { items: [], status: `Serper indisponivel (${response.status})${detail}` };
     }
 
     const rawPayload = (await response.json()) as unknown;
     const parseResult = SerperResponseSchema.safeParse(rawPayload);
     if (!parseResult.success) {
-      return { results: [], status: "Serper retornou formato invalido" };
+      return { items: [], status: "Serper retornou formato invalido" };
     }
-
     if (parseResult.data.message) {
-      return { results: [], status: `Serper erro: ${parseResult.data.message}` };
+      return { items: [], status: `Serper erro: ${parseResult.data.message}` };
     }
 
-    const items = parseResult.data.organic ?? [];
-    const results = items
-      .map((item, index) => normalizeApifyItem(item, "Instagram", request, index))
-      .filter((item): item is ProspectSearchResult => item !== null)
-      .slice(0, request.limitPerSource);
-
-    return {
-      results,
-      status:
-        results.length > 0
-          ? `${results.length} lead(s) via Serper`
-          : "0 lead(s) via Serper (verifique nicho/região)",
-    };
+    return { items: parseResult.data.organic ?? [], status: "ok" };
   } catch (error) {
-    if (isAbortError(error)) {
-      return { results: [], status: "Serper timeout" };
-    }
-    return { results: [], status: "Falha ao consultar Serper" };
+    if (isAbortError(error)) return { items: [], status: "Serper timeout" };
+    return { items: [], status: "Falha ao consultar Serper" };
   }
+}
+
+/**
+ * Busca genérica no Serper que retorna candidatos brutos (title/link/snippet),
+ * sem normalizar para lead. Usada pela fonte "Sem Google Meu Negócio", que
+ * precisa dos nomes crus para depois verificar a presença no GMN.
+ */
+export async function searchSerperRaw(
+  variant: "instagram" | "facebook" | "general",
+  request: ProspectSearchRequest
+): Promise<{ items: SerperOrganicItem[]; status: string }> {
+  const query =
+    variant === "instagram"
+      ? buildInstagramQuery(request)
+      : variant === "facebook"
+        ? buildFacebookQuery(request)
+        : buildGeneralQuery(request);
+  return runSerperQuery(query, request.limitPerSource);
+}
+
+export async function searchSerperInstagram(
+  request: ProspectSearchRequest
+): Promise<{ results: ProspectSearchResult[]; status: string }> {
+  const { items, status } = await runSerperQuery(
+    buildInstagramQuery(request),
+    request.limitPerSource
+  );
+  if (status !== "ok") return { results: [], status };
+
+  const results = items
+    .map((item, index) => normalizeApifyItem(item, "Instagram", request, index))
+    .filter((item): item is ProspectSearchResult => item !== null)
+    .slice(0, request.limitPerSource);
+
+  return {
+    results,
+    status:
+      results.length > 0
+        ? `${results.length} lead(s) via Serper`
+        : "0 lead(s) via Serper (verifique nicho/região)",
+  };
 }

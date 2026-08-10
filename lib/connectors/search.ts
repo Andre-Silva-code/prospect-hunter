@@ -5,6 +5,7 @@ import { searchApifyConnector } from "./apify";
 import { searchGoogleCseInstagram, isGoogleCseEnabled } from "./google-cse";
 import { searchSerperInstagram, isSerperEnabled } from "./serper";
 import { searchGooglePlaces } from "./google-places";
+import { searchSemGmn } from "./sem-gmn";
 import { shouldUseDemoFallback, buildDemoFallbackResults } from "./demo-fallback";
 import { normalizeConnectorItem } from "./normalizers";
 import { expandRegion } from "./utils";
@@ -24,6 +25,12 @@ export async function searchProspects(
     expanded.sources.map(async (source) => {
       if (source === "Google Maps" || source === "Google Meu Negócio") {
         const result = await searchGooglePlaces(source, expanded);
+        connectorStatus[source] = result.status;
+        return result.results;
+      }
+
+      if (source === "Sem Google Meu Negócio") {
+        const result = await searchSemGmn(expanded);
         connectorStatus[source] = result.status;
         return result.results;
       }
