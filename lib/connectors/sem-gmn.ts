@@ -1,6 +1,7 @@
 import type { ProspectSearchRequest, ProspectSearchResult, SerperOrganicItem } from "./types";
 import { searchSerperRaw, isSerperEnabled } from "./serper";
 import { detectGmnPresence, significantTokens } from "./gmn-detector";
+import { mainCitiesForState } from "./cities-by-state";
 import { qualifyLead } from "@/lib/lead-qualification";
 import { estimateBudget, hash, scoreToPriority, parseIntegerEnv } from "./utils";
 import { logger } from "@/lib/logger";
@@ -28,6 +29,8 @@ const BLOCKED_DOMAIN_PATTERNS = [
   /\.gov(\.[a-z]{2})?$/i, // governo
   /doctoralia\./i,
   /bookis\./i,
+  /booksy\./i, // marketplace de agendamento
+  /econodata\./i, // diretório de empresas
   /gympass\./i,
   /getninjas\./i,
   /solutudo\./i,
@@ -40,6 +43,7 @@ const BLOCKED_DOMAIN_PATTERNS = [
   /linktr\.ee/i,
   /youtube\./i,
   /wikipedia\./i,
+  /reclameaqui\./i,
 ];
 
 /**
@@ -50,11 +54,36 @@ const BLOCKED_DOMAIN_PATTERNS = [
 const NON_BUSINESS_HINTS = [
   /\bead\b/i,
   /\bcurso[s]?\b/i,
+  /\bturma\b/i,
+  /\baula[s]?\b/i,
+  /\bp[óo]s\b/i,
+  /\bworkshop[s]?\b/i,
+  /\bcongresso\b/i,
+  /\bfeira\b/i,
+  /\bevento[s]?\b/i,
+  /\bexpo\b/i,
   /\be\s+regi[ãa]o\b/i,
   /\bgrupo\b/i,
   /\bespecialistas?\b/i,
   /\bmelhores\b/i,
   /\bencontre\b/i,
+  /\bperto\s+de\s+(mim|voc[êe])\b/i, // páginas de SEO "perto de mim"
+  /\blista\s+de\b/i, // "Lista de empresas..."
+  /\(\d+\)/, // "(298)" — contagem de diretório
+  /^(in[íi]cio|home|p[áa]gina inicial)$/i, // títulos genéricos de site
+  /^[^,]+\s*\(centro\)$/i, // "Guarulhos (Centro)" — página de unidade
+];
+
+/** Trechos de URL que indicam conteúdo (não a página do negócio em si). */
+const BLOCKED_URL_PATHS = [
+  /\/videos?\//i,
+  /\/photo/i,
+  /\/events?\//i,
+  /\/posts?\//i,
+  /\/reel/i,
+  /instagram\.com\/p\//i, // post individual do Instagram (não é perfil)
+  /\/workshops?\b/i,
+  /\/unidade[s]?\//i, // páginas de "unidade" de redes
 ];
 
 /** Extrai o domínio (host) de uma URL, sem "www." e subdomínios de idioma. */
@@ -67,11 +96,17 @@ function domainOf(url?: string): string {
   }
 }
 
-/** True se a URL vem de um domínio que não é negócio local prospectável. */
+/**
+ * True se a URL deve ser descartada: domínio que não é negócio local
+ * (diretório/curso) OU caminho de conteúdo (vídeo/post/evento, não a página do
+ * negócio).
+ */
 function isBlockedDomain(url?: string): boolean {
   const host = domainOf(url);
   if (!host) return false;
-  return BLOCKED_DOMAIN_PATTERNS.some((re) => re.test(host));
+  if (BLOCKED_DOMAIN_PATTERNS.some((re) => re.test(host))) return true;
+  if (url && BLOCKED_URL_PATHS.some((re) => re.test(url))) return true;
+  return false;
 }
 
 /**
@@ -82,6 +117,18 @@ function isBlockedDomain(url?: string): boolean {
 function looksLikeBusinessName(name: string): boolean {
   if (name.length < 4) return false;
   if (NON_BUSINESS_HINTS.some((re) => re.test(name))) return false;
+
+  // Títulos-frase de SEO ("Tratamentos estéticos personalizados e cuidados...")
+  // costumam ser longos. Nomes de negócio reais raramente passam de 5 palavras.
+  const wordCount = name.trim().split(/\s+/).length;
+  if (wordCount > 5) return false;
+
+  // Frases com preposições típicas de descrição ("em São Paulo", "com beleza",
+  // "de excelência") indicam texto de SEO, não nome de negócio.
+  if (/\b(em|com|para|sobre)\b/i.test(name) && wordCount >= 4) {
+    return false;
+  }
+
   // Precisa ter um token distintivo (nome próprio), além de termos genéricos de
   // segmento como "estética/clínica", e esse token deve ter ao menos 4 letras
   // (evita fragmentos como "pro" de nomes cortados).
@@ -133,18 +180,84 @@ function dedupeCandidates(
   return [...seen.values()];
 }
 
+/**
+ * Orquestra a busca sem-GMN. Se o usuário informou uma cidade, busca só nela.
+ * Caso contrário (só o estado), busca automaticamente nas principais cidades do
+ * estado e junta os leads — mais volume mantendo a qualidade.
+ *
+ * @param stateName nome do estado já expandido (ex.: "São Paulo").
+ */
 export async function searchSemGmn(
-  request: ProspectSearchRequest
+  request: ProspectSearchRequest,
+  stateName?: string
 ): Promise<{ results: ProspectSearchResult[]; status: string }> {
   if (!isSerperEnabled()) {
     return { results: [], status: "Sem GMN indisponivel: Serper não configurado" };
   }
 
+  // Cidade específica informada → busca só nela (comportamento original).
+  if (request.city && request.city.trim().length > 0) {
+    return searchSemGmnCity({
+      ...request,
+      region: `${request.city}, ${stateName ?? request.region}`,
+    });
+  }
+
+  // Sem cidade → modo multi-cidade nas principais cidades do estado (UF).
+  const uf = request.region;
+  const maxCities = Math.max(1, parseIntegerEnv("SEM_GMN_MAX_CITIES", 6));
+  const cities = mainCitiesForState(uf, maxCities);
+
+  if (cities.length === 0) {
+    // Estado não mapeado → cai no comportamento antigo (busca pela região toda).
+    return searchSemGmnCity({ ...request, region: stateName ?? request.region });
+  }
+
+  const perCity = await Promise.all(
+    cities.map((city) =>
+      searchSemGmnCity({
+        ...request,
+        city,
+        region: `${city}, ${stateName ?? uf}`,
+      })
+    )
+  );
+
+  const merged = dedupeLeads(perCity.flatMap((r) => r.results));
+  const totalCities = cities.length;
+  return {
+    results: merged,
+    status: `${merged.length} lead(s) sem GMN em ${totalCities} cidade(s) de ${stateName ?? uf}`,
+  };
+}
+
+/** Remove leads duplicados (mesmo negócio aparecendo em cidades vizinhas). */
+function dedupeLeads(leads: ProspectSearchResult[]): ProspectSearchResult[] {
+  const seen = new Map<string, ProspectSearchResult>();
+  for (const lead of leads) {
+    const key = lead.company.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    if (!seen.has(key)) seen.set(key, lead);
+  }
+  return [...seen.values()];
+}
+
+async function searchSemGmnCity(
+  request: ProspectSearchRequest
+): Promise<{ results: ProspectSearchResult[]; status: string }> {
   // 1) Reúne candidatos das 3 fontes (Instagram, Facebook, busca geral).
+  // Buscamos MAIS candidatos por fonte do que o limite de leads pedido, pois a
+  // maioria já tem GMN e será descartada — precisamos de um funil largo na
+  // entrada para sobrar leads sem-GMN no final. Configurável via env.
+  const perSource = Math.max(
+    request.limitPerSource,
+    parseIntegerEnv("SEM_GMN_CANDIDATES_PER_SOURCE", 30)
+  );
+  const wideRequest: ProspectSearchRequest = { ...request, limitPerSource: perSource };
+
   const [ig, fb, general] = await Promise.all([
-    searchSerperRaw("instagram", request),
-    searchSerperRaw("facebook", request),
-    searchSerperRaw("general", request),
+    searchSerperRaw("instagram", wideRequest),
+    searchSerperRaw("facebook", wideRequest),
+    searchSerperRaw("general", wideRequest),
   ]);
 
   const rawItems: SerperOrganicItem[] = [...ig.items, ...fb.items, ...general.items];
@@ -157,28 +270,36 @@ export async function searchSemGmn(
   }
 
   // 2) Verifica cada candidato no Google Places (limita para não estourar cota).
-  const maxChecks = Math.max(1, parseIntegerEnv("SEM_GMN_MAX_CHECKS", 20));
+  const maxChecks = Math.max(1, parseIntegerEnv("SEM_GMN_MAX_CHECKS", 60));
   const region = request.city ?? request.region;
   const toCheck = candidates.slice(0, maxChecks);
 
+  // Verifica em lotes paralelos (mais rápido que um-a-um), sem disparar todas as
+  // requisições de uma vez para não bater rate limit da Places API.
+  const batchSize = Math.max(1, parseIntegerEnv("SEM_GMN_BATCH_SIZE", 8));
   const results: ProspectSearchResult[] = [];
   let hasGmnCount = 0;
   let unknownCount = 0;
 
-  for (const candidate of toCheck) {
-    const detection = await detectGmnPresence(candidate.name, region);
+  for (let i = 0; i < toCheck.length; i += batchSize) {
+    const batch = toCheck.slice(i, i + batchSize);
+    const detections = await Promise.all(
+      batch.map(async (candidate) => ({
+        candidate,
+        detection: await detectGmnPresence(candidate.name, region),
+      }))
+    );
 
-    if (detection.presence === "has") {
-      hasGmnCount += 1;
-      continue; // já tem GMN → não é lead
+    for (const { candidate, detection } of detections) {
+      if (detection.presence === "has") {
+        hasGmnCount += 1;
+      } else if (detection.presence === "unknown") {
+        unknownCount += 1;
+      } else {
+        // presence === "absent": negócio sem GMN → lead do Funil B
+        results.push(buildSemGmnLead(candidate, request, region, results.length));
+      }
     }
-    if (detection.presence === "unknown") {
-      unknownCount += 1;
-      continue; // dúvida → descarta por segurança
-    }
-
-    // presence === "absent": negócio sem GMN → lead do Funil B
-    results.push(buildSemGmnLead(candidate, request, region, results.length));
   }
 
   const status =

@@ -30,7 +30,9 @@ export async function searchProspects(
       }
 
       if (source === "Sem Google Meu Negócio") {
-        const result = await searchSemGmn(expanded);
+        // Passa o request ORIGINAL (com UF e city separados) para o conector
+        // decidir entre busca de uma cidade ou multi-cidade do estado.
+        const result = await searchSemGmn(request, stateName);
         connectorStatus[source] = result.status;
         return result.results;
       }

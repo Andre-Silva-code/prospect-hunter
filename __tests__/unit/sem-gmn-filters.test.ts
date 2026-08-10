@@ -41,6 +41,13 @@ describe("domainOf / isBlockedDomain", () => {
     expect(isBlockedDomain("https://www.facebook.com/prdlaser/")).toBe(false);
     expect(isBlockedDomain("https://chezelle.com.br")).toBe(false);
   });
+
+  it("bloqueia URLs de conteúdo (vídeos, posts, eventos)", () => {
+    expect(
+      isBlockedDomain("https://www.facebook.com/masterposbrasil/videos/turma-de-estetica/")
+    ).toBe(true);
+    expect(isBlockedDomain("https://www.facebook.com/events/123")).toBe(true);
+  });
 });
 
 describe("looksLikeBusinessName", () => {
@@ -53,6 +60,29 @@ describe("looksLikeBusinessName", () => {
     expect(looksLikeBusinessName("Estética EAD")).toBe(false);
     expect(looksLikeBusinessName("Beleza e Estética Campinas e Região")).toBe(false);
     expect(looksLikeBusinessName("Especialistas em medicina estética")).toBe(false);
+    expect(looksLikeBusinessName("Turma de Estética")).toBe(false);
+    expect(looksLikeBusinessName("Início")).toBe(false);
+    expect(looksLikeBusinessName("Home")).toBe(false);
+  });
+
+  it("rejeita eventos, feiras e congressos", () => {
+    expect(looksLikeBusinessName("Congresso Estetika")).toBe(false);
+    expect(looksLikeBusinessName("Beauty Fair Congresso")).toBe(false);
+    expect(looksLikeBusinessName("Feira de Estética Expo")).toBe(false);
+  });
+
+  it("rejeita títulos-frase de SEO (longos ou descritivos)", () => {
+    expect(looksLikeBusinessName("Tratamentos estéticos personalizados e cuidados especiais")).toBe(
+      false
+    );
+    expect(looksLikeBusinessName("Clínica de Estética em SBC Excelência e Cuidado")).toBe(false);
+    expect(looksLikeBusinessName("Clinica de estetica perto de mim")).toBe(false);
+  });
+
+  it("ainda aceita nomes de negócio normais", () => {
+    expect(looksLikeBusinessName("ChezElle Estética e Laser")).toBe(true);
+    expect(looksLikeBusinessName("Emporium da Beleza")).toBe(true);
+    expect(looksLikeBusinessName("Labelle Estética")).toBe(true);
   });
 
   it("rejeita nome só com termos genéricos de segmento", () => {
