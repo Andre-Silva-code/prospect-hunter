@@ -100,7 +100,12 @@ export default function ProspectingPage() {
     "Infoprodutores locais",
     "Escritorios de advocacia nichados",
   ];
-  const sourceOptions: LeadSource[] = ["Instagram", "LinkedIn", "Google Meu Negócio"];
+  const sourceOptions: LeadSource[] = [
+    "Instagram",
+    "LinkedIn",
+    "Google Meu Negócio",
+    "Sem Google Meu Negócio",
+  ];
 
   const [showManualForm, setShowManualForm] = React.useState(false);
   const [manualIcp, setManualIcp] = React.useState<IcpProfile>(defaultIcp);
