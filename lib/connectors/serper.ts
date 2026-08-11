@@ -128,6 +128,18 @@ async function runSerperQuery(
 }
 
 /**
+ * Executa uma query livre no Serper e devolve os itens orgânicos brutos.
+ * Útil para buscas ad-hoc (ex.: enriquecimento de contato/CNPJ) que não seguem
+ * o formato das fontes de prospecção.
+ */
+export async function searchSerperQuery(
+  query: string,
+  limit = 5
+): Promise<{ items: SerperOrganicItem[]; status: string }> {
+  return runSerperQuery(query, limit);
+}
+
+/**
  * Busca genérica no Serper que retorna candidatos brutos (title/link/snippet),
  * sem normalizar para lead. Usada pela fonte "Sem Google Meu Negócio", que
  * precisa dos nomes crus para depois verificar a presença no GMN.

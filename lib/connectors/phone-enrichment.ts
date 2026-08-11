@@ -152,7 +152,7 @@ const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
 /** Faz fetch de uma URL e devolve o HTML, ou null em qualquer falha. */
-async function fetchHtml(url: string): Promise<string | null> {
+export async function fetchHtml(url: string): Promise<string | null> {
   try {
     const response = await fetchWithTimeout(
       url,
@@ -171,7 +171,7 @@ async function fetchHtml(url: string): Promise<string | null> {
  * costuma morar em /contato, /fale-conosco ou no link wa.me do botão flutuante,
  * não na home. Retorna URLs absolutas (no máximo 2), deduplicadas.
  */
-function findContactLinks(html: string, baseUrl: string): string[] {
+export function findContactLinks(html: string, baseUrl: string): string[] {
   const hrefs = [...html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]);
   const wanted = /(contato|fale-?conosco|fale-?com|contact|atendimento|whatsapp|wa\.me)/i;
   const found: string[] = [];
