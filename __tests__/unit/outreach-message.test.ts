@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   generateOutreachMessage,
   generateGmnAuditMessage,
+  generateSemGmnWhatsAppMessage,
+  generateSemGmnFollowUpMessage,
+  generateSemGmnPostPreviewMessage,
   buildGbpCheckUrl,
 } from "@/lib/outreach-message";
 
@@ -43,6 +46,52 @@ describe("generateGmnAuditMessage", () => {
     expect(message).toContain("Sao Paulo, SP");
     expect(message).toContain("nota 4.8");
     expect(message).toContain("análise gratuita");
+  });
+});
+
+describe("generateSemGmnWhatsAppMessage", () => {
+  it("personaliza com empresa, região e nicho e foca em implementação (não otimização)", () => {
+    const message = generateSemGmnWhatsAppMessage({
+      company: "Estúdio Bella",
+      region: "Campinas, São Paulo",
+      niche: "estética",
+    });
+
+    expect(message).toContain("Estúdio Bella");
+    expect(message).toContain("Campinas, São Paulo");
+    expect(message).toContain("estética");
+    // Intenção: vender a criação da ficha (não analisar uma existente)
+    expect(message).toMatch(/não aparecem no Google Meu Negócio/i);
+    expect(message).toMatch(/implemento a ficha completa/i);
+  });
+});
+
+describe("generateSemGmnFollowUpMessage", () => {
+  it("step 1 traz novo ângulo (buscas 'perto de mim')", () => {
+    const msg = generateSemGmnFollowUpMessage({ company: "Estúdio Bella" }, 1);
+    expect(msg).toContain("Estúdio Bella");
+    expect(msg).toMatch(/perto de mim/i);
+  });
+
+  it("step 2 é uma saída limpa que preserva o relacionamento", () => {
+    const msg = generateSemGmnFollowUpMessage({ company: "Estúdio Bella" }, 2);
+    expect(msg).toMatch(/última passagem/i);
+    expect(msg).toMatch(/mapa do Google/i);
+  });
+});
+
+describe("generateSemGmnPostPreviewMessage", () => {
+  it("step 1 confirma a prévia e traz o link de agenda", () => {
+    const msg = generateSemGmnPostPreviewMessage({ company: "Estúdio Bella" }, 1);
+    expect(msg).toMatch(/prévia/i);
+    expect(msg).toContain("calendar.app.google");
+  });
+
+  it("cada step gera texto diferente", () => {
+    const s1 = generateSemGmnPostPreviewMessage({ company: "X" }, 1);
+    const s2 = generateSemGmnPostPreviewMessage({ company: "X" }, 2);
+    const s3 = generateSemGmnPostPreviewMessage({ company: "X" }, 3);
+    expect(new Set([s1, s2, s3]).size).toBe(3);
   });
 });
 

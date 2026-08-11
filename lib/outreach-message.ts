@@ -313,6 +313,121 @@ export function generateReactivationMessage(lead: Pick<LeadRecord, "company">): 
   ].join("\n");
 }
 
+// ─── Funil "Sem Google Meu Negócio" (venda de implementação) ─────────────────
+
+/**
+ * Mensagem inicial para leads que NÃO têm ficha no Google Meu Negócio.
+ *
+ * Intenção diferente do funil GMN existente: aqui não há o que "otimizar" — o
+ * objetivo é VENDER a implementação da presença no Google (criar do zero).
+ *
+ * Estrutura SPIN Selling (natural, não robótica):
+ *   - Situação:   constata a ausência de ficha no Google
+ *   - Problema:   quem procura o serviço na região não encontra o negócio
+ *   - Implicação: esse cliente acaba indo para o concorrente que aparece
+ *   - Need-payoff: aparecer no Google local costuma ser a virada mais rápida
+ *
+ * Mantém os princípios da casa: especificidade antes do CTA, CTA de baixa
+ * pressão, sem urgência falsa.
+ */
+export function generateSemGmnWhatsAppMessage(
+  lead: Pick<LeadRecord, "company" | "region" | "niche">
+): string {
+  return [
+    `Oi, ${lead.company}!`,
+    "",
+    `Estava mapeando negócios de ${lead.niche} em ${lead.region} e notei uma coisa: vocês não aparecem no Google Meu Negócio — aquele quadro que surge no mapa quando alguém pesquisa pelo serviço na região.`,
+    "",
+    "Na prática, isso significa que quem procura por vocês no Google hoje provavelmente encontra os concorrentes primeiro — e liga pra eles.",
+    "",
+    "A boa notícia: é justamente o tipo de coisa que dá pra resolver rápido. Eu implemento a ficha completa (do zero, otimizada pra aparecer nas buscas locais).",
+    "",
+    "Quer que eu te mostre em 2 minutos como ficaria e o que vocês estão perdendo sem isso?",
+  ].join("\n");
+}
+
+/**
+ * Follow-ups para leads sem-GMN que não responderam.
+ *
+ * Regra da casa: follow-up sem novo valor = VETO. Cada step traz um ângulo novo.
+ *
+ * step 1 (D+3): implicação concreta — buscas "perto de mim" e custo de invisibilidade.
+ * step 2 (D+6): saída limpa, preserva relacionamento.
+ */
+export function generateSemGmnFollowUpMessage(
+  lead: Pick<LeadRecord, "company">,
+  step: 1 | 2
+): string {
+  if (step === 1) {
+    return [
+      `Oi! Complementando o que te mandei, ${lead.company}.`,
+      "",
+      'Hoje boa parte das buscas locais é do tipo "perto de mim" — e o Google só mostra quem tem ficha ativa. Sem ela, o negócio simplesmente não entra nessa disputa, mesmo sendo melhor que o concorrente ao lado.',
+      "",
+      "A implementação resolve isso de uma vez e passa a trabalhar por vocês todos os dias. Se quiser, te mostro como fica antes de qualquer decisão.",
+    ].join("\n");
+  }
+
+  return [
+    `Oi, ${lead.company}!`,
+    "",
+    "Última passagem por aqui — se agora não for o momento, sem problema.",
+    "",
+    "Fica o contato para quando quiserem colocar o negócio no mapa do Google. É só me chamar!",
+  ].join("\n");
+}
+
+/**
+ * Mensagens pós-envio da prévia/mockup da ficha (conduz para fechamento).
+ *
+ * Espelha o pós-análise do funil GMN, mas o "entregável" aqui é a prévia de
+ * como a ficha implementada ficaria — e o CTA leva para agendar a implementação.
+ *
+ * step 1 (imediata): confirma a prévia + aponta o ganho mais imediato.
+ * step 2 (D+2): prova social implícita (negócios que saíram do zero).
+ * step 3 (D+4): CTA de agenda — usar só se houver disponibilidade real.
+ */
+export function generateSemGmnPostPreviewMessage(
+  lead: Pick<LeadRecord, "company">,
+  step: 1 | 2 | 3
+): string {
+  if (step === 1) {
+    return [
+      `Oi, ${lead.company}!`,
+      "",
+      "Acabei de te mandar uma prévia de como a ficha de vocês ficaria no Google.",
+      "",
+      "Repara no principal: a partir do momento em que ela entra no ar, vocês passam a aparecer para quem já está procurando o serviço agora — sem depender de indicação.",
+      "",
+      "Se quiser, eu deixo tudo implementado e funcionando. Podemos alinhar em 15 minutos:",
+      "",
+      "https://calendar.app.google/vTru5VzoEc1M4q688",
+      "",
+      "Sem compromisso.",
+    ].join("\n");
+  }
+
+  if (step === 2) {
+    return [
+      `${lead.company}, só um complemento do que te enviei.`,
+      "",
+      "Negócios do mesmo segmento que saíram do zero no Google costumam ver as primeiras chamadas e mensagens vindas do mapa em poucas semanas — é dos canais que dá retorno mais rápido, porque pega quem já está com intenção de compra.",
+      "",
+      "Vale dar uma olhada na prévia que preparei pra vocês.",
+    ].join("\n");
+  }
+
+  return [
+    `Oi, ${lead.company}! Última vez que passo por aqui.`,
+    "",
+    "Preparei a prévia especificamente pro negócio de vocês — não é modelo genérico. Se quiserem colocar isso pra rodar antes dos concorrentes da região, é só agendar 15 minutinhos:",
+    "",
+    "https://calendar.app.google/vTru5VzoEc1M4q688",
+    "",
+    "Sem compromisso.",
+  ].join("\n");
+}
+
 export function buildGbpCheckUrl(companyName: string, region?: string): string {
   const query = region
     ? `${companyName} ${region} google meu negócio`
