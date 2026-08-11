@@ -6,6 +6,10 @@ import { searchProspects } from "@/lib/prospecting-connectors";
 import { checkApifyRateLimit } from "@/lib/rate-limiter";
 import type { LeadSource } from "@/types/prospecting";
 
+// Busca pode consultar várias fontes/cidades — dá mais fôlego de execução para
+// não ser cortada prematuramente em ambientes com timeout curto.
+export const maxDuration = 60;
+
 type SearchPayload = {
   icp?: string;
   niche?: string;
@@ -71,20 +75,35 @@ export async function POST(request: Request): Promise<
     region: payload.region,
   });
 
-  const response = await searchProspects({
-    icp: payload.icp,
-    niche: payload.niche,
-    region: payload.region,
-    city: payload.city || undefined,
-    sources: payload.sources,
-    limitPerSource,
-  });
+  try {
+    const response = await searchProspects({
+      icp: payload.icp,
+      niche: payload.niche,
+      region: payload.region,
+      city: payload.city || undefined,
+      sources: payload.sources,
+      limitPerSource,
+    });
 
-  logger.info("Prospecting search completed", {
-    userId: sessionUser.id,
-    resultsCount: response.results.length,
-    connectorStatus: response.connectorStatus,
-  });
+    logger.info("Prospecting search completed", {
+      userId: sessionUser.id,
+      resultsCount: response.results.length,
+      connectorStatus: response.connectorStatus,
+    });
 
-  return NextResponse.json(response);
+    return NextResponse.json(response);
+  } catch (error) {
+    // Sem este catch, qualquer exceção vira um 500 mudo ("Verifique os
+    // conectores" no front). Aqui registramos a causa real e devolvemos uma
+    // mensagem mais útil.
+    logger.error("Prospecting search failed", {
+      userId: sessionUser.id,
+      sources: payload.sources,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return NextResponse.json(
+      { error: "Falha ao executar a busca. Tente uma região/cidade mais específica." },
+      { status: 500 }
+    );
+  }
 }

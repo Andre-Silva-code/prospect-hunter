@@ -204,8 +204,10 @@ export async function searchSemGmn(
   }
 
   // Sem cidade → modo multi-cidade nas principais cidades do estado (UF).
+  // Default conservador (3 cidades) para caber na janela de tempo de proxies
+  // com timeout curto (ex.: EasyPanel). Ajustável via env se o ambiente aguentar.
   const uf = request.region;
-  const maxCities = Math.max(1, parseIntegerEnv("SEM_GMN_MAX_CITIES", 6));
+  const maxCities = Math.max(1, parseIntegerEnv("SEM_GMN_MAX_CITIES", 3));
   const cities = mainCitiesForState(uf, maxCities);
 
   if (cities.length === 0) {
@@ -213,12 +215,17 @@ export async function searchSemGmn(
     return searchSemGmnCity({ ...request, region: stateName ?? request.region });
   }
 
+  // No multi-cidade, reduz o funil por cidade (menos candidatos/verificações),
+  // já que o volume vem da soma das cidades. Evita estourar o tempo total.
+  const perCityLimit = Math.max(1, parseIntegerEnv("SEM_GMN_MULTICITY_PER_SOURCE", 15));
+
   const perCity = await Promise.all(
     cities.map((city) =>
       searchSemGmnCity({
         ...request,
         city,
         region: `${city}, ${stateName ?? uf}`,
+        limitPerSource: perCityLimit,
       })
     )
   );
@@ -247,10 +254,13 @@ async function searchSemGmnCity(
   // 1) Reúne candidatos das 3 fontes (Instagram, Facebook, busca geral).
   // Buscamos MAIS candidatos por fonte do que o limite de leads pedido, pois a
   // maioria já tem GMN e será descartada — precisamos de um funil largo na
-  // entrada para sobrar leads sem-GMN no final. Configurável via env.
+  // entrada para sobrar leads sem-GMN no final.
+  //
+  // O teto de candidatos acompanha o limite pedido (o modo multi-cidade passa um
+  // limite menor por cidade, para o total caber na janela de tempo). Configurável.
   const perSource = Math.max(
     request.limitPerSource,
-    parseIntegerEnv("SEM_GMN_CANDIDATES_PER_SOURCE", 30)
+    Math.min(parseIntegerEnv("SEM_GMN_CANDIDATES_PER_SOURCE", 30), request.limitPerSource * 2)
   );
   const wideRequest: ProspectSearchRequest = { ...request, limitPerSource: perSource };
 
@@ -269,8 +279,13 @@ async function searchSemGmnCity(
     return { results: [], status: "0 candidato(s) encontrado(s) para verificar GMN" };
   }
 
-  // 2) Verifica cada candidato no Google Places (limita para não estourar cota).
-  const maxChecks = Math.max(1, parseIntegerEnv("SEM_GMN_MAX_CHECKS", 60));
+  // 2) Verifica cada candidato no Google Places (limita para não estourar cota
+  // nem o tempo). O teto acompanha o limite pedido — no multi-cidade, cada
+  // cidade verifica menos, e o volume vem da soma.
+  const maxChecks = Math.max(
+    1,
+    Math.min(parseIntegerEnv("SEM_GMN_MAX_CHECKS", 60), request.limitPerSource * 3)
+  );
   const region = request.city ?? request.region;
   const toCheck = candidates.slice(0, maxChecks);
 
