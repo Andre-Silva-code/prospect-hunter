@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
 import { createLead, listLeads } from "@/lib/leads-repository";
-import { initiateGmnOutreach, initiateInstagramOutreach } from "@/lib/outreach-orchestrator";
+import {
+  initiateGmnOutreach,
+  initiateInstagramOutreach,
+  initiateSemGmnOutreach,
+} from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
 
@@ -61,6 +65,13 @@ export async function POST(
     } else if (createdLead.source === "Instagram") {
       initiateInstagramOutreach(sessionUser.id, createdLead).catch((err) => {
         logger.error("Instagram outreach initiation failed", {
+          leadId: createdLead.id,
+          error: err instanceof Error ? err.message : "unknown",
+        });
+      });
+    } else if (createdLead.source === "Sem Google Meu Negócio") {
+      initiateSemGmnOutreach(sessionUser.id, createdLead).catch((err) => {
+        logger.error("Sem GMN outreach initiation failed", {
           leadId: createdLead.id,
           error: err instanceof Error ? err.message : "unknown",
         });
