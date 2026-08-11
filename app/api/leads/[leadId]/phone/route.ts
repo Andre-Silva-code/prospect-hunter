@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth-session";
 import { logger } from "@/lib/logger";
 import { listLeads, updateLeadRecord } from "@/lib/leads-repository";
-import { initiateGmnOutreach, initiateInstagramOutreach } from "@/lib/outreach-orchestrator";
+import {
+  initiateGmnOutreach,
+  initiateInstagramOutreach,
+  initiateSemGmnOutreach,
+} from "@/lib/outreach-orchestrator";
 import { normalizePhoneForWhatsApp } from "@/lib/connectors/utils";
 
 type PhonePayload = {
@@ -63,7 +67,9 @@ export async function POST(
   const outreachResult =
     lead.source === "Instagram"
       ? await initiateInstagramOutreach(sessionUser.id, leadWithPhone)
-      : await initiateGmnOutreach(sessionUser.id, leadWithPhone);
+      : lead.source === "Sem Google Meu Negócio"
+        ? await initiateSemGmnOutreach(sessionUser.id, leadWithPhone)
+        : await initiateGmnOutreach(sessionUser.id, leadWithPhone);
 
   logger.info("Phone added and outreach initiated", {
     userId: sessionUser.id,

@@ -1,6 +1,7 @@
 import type { LeadRecord } from "@/types/prospecting";
 import type { OutreachQueueItem } from "@/types/outreach";
 import { extractPhoneFromContact } from "@/lib/connectors/utils";
+import { enrichSemGmnContact } from "@/lib/connectors/sem-gmn-enrichment";
 import {
   checkWhatsAppNumber,
   isUazapiConfigured,
@@ -13,6 +14,8 @@ import { captureGbpCheckReport } from "@/lib/pdf/gbpcheck-capture";
 import {
   generateGmnWhatsAppMessage,
   generateGmnFollowUpMessage,
+  generateSemGmnWhatsAppMessage,
+  generateSemGmnFollowUpMessage,
   generatePostAnalysisMessage,
   generateInstagramWhatsAppMessage,
   generateInstagramFollowUpMessage,
@@ -134,6 +137,52 @@ export async function initiateInstagramOutreach(
 }
 
 /**
+ * Inicia outreach para leads "Sem Google Meu Negócio" (venda de implementação).
+ *
+ * Diferenças em relação aos outros funis:
+ *  - Score baixo é ESPERADO (o lead não ter GMN é justamente o gatilho), então
+ *    esses leads são ISENTOS do score mínimo.
+ *  - O telefone normalmente não vem no lead; tentamos DESCOBRIR via a cascata de
+ *    enriquecimento (bio/site/CNPJ). Se achar, enfileira; se não, marca para
+ *    contato manual (o operador usa o link do perfil no Kanban).
+ */
+export async function initiateSemGmnOutreach(
+  userId: string,
+  lead: LeadRecord
+): Promise<{ queued: boolean; reason: string }> {
+  if (!isUazapiConfigured()) {
+    return { queued: false, reason: "Uazapi nao configurado" };
+  }
+
+  if (lead.source !== "Sem Google Meu Negócio") {
+    return { queued: false, reason: "Lead nao e Sem GMN" };
+  }
+
+  // 1) Telefone já presente? (raro, mas possível se veio no contact)
+  let phone = extractPhoneFromContact(lead.contact);
+
+  // 2) Se não, tenta descobrir via cascata de enriquecimento (grátis).
+  // A URL do perfil/site do lead sem-GMN fica no campo `contact`.
+  if (!phone) {
+    const siteUrl = /^https?:\/\//i.test(lead.contact) ? lead.contact : undefined;
+    const enrichment = await enrichSemGmnContact(lead.company, lead.region, siteUrl);
+    phone = enrichment.phone;
+  }
+
+  // 3) Sem telefone descobrível → marca para contato manual (não é falha).
+  if (!phone) {
+    return { queued: false, reason: "Sem telefone — contatar manualmente via perfil" };
+  }
+
+  // Leads sem-GMN são isentos do score mínimo (score baixo é esperado).
+  const item = await enqueueOutreach(userId, lead.id, phone);
+
+  verifyAndSchedule(item).catch(() => {});
+
+  return { queued: true, reason: `Enfileirado Sem GMN (${item.id})` };
+}
+
+/**
  * Verifica se o número existe no WhatsApp e agenda o envio.
  */
 export async function verifyAndSchedule(item: OutreachQueueItem): Promise<void> {
@@ -184,7 +233,13 @@ export async function processScheduledOutreach(
     const message =
       lead.source === "Instagram"
         ? generateInstagramWhatsAppMessage({ company: lead.company, niche: lead.niche })
-        : generateGmnWhatsAppMessage({ company: lead.company, region: lead.region });
+        : lead.source === "Sem Google Meu Negócio"
+          ? generateSemGmnWhatsAppMessage({
+              company: lead.company,
+              region: lead.region,
+              niche: lead.niche,
+            })
+          : generateGmnWhatsAppMessage({ company: lead.company, region: lead.region });
 
     // 2. Enviar texto via WhatsApp
     const sendResult = await sendTextMessage(item.whatsappJid, message);
@@ -316,7 +371,9 @@ export async function processFollowUp(
   const message =
     lead.source === "Instagram"
       ? generateInstagramFollowUpMessage({ company: lead.company }, step)
-      : generateGmnFollowUpMessage({ company: lead.company }, step);
+      : lead.source === "Sem Google Meu Negócio"
+        ? generateSemGmnFollowUpMessage({ company: lead.company }, step)
+        : generateGmnFollowUpMessage({ company: lead.company }, step);
   const sendResult = await sendTextMessage(item.whatsappJid, message);
 
   if (!sendResult.success) {

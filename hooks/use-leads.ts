@@ -218,6 +218,11 @@ function buildSeedLeads(
     LinkedIn: ["Nexa Consultoria", "Fluxo Digital Partners", "Escala B2B Lab"],
     "Google Maps": ["Estetica Bella Forma", "Melo Advocacia Premium", "Plena Pilates"],
     "Google Meu Negócio": ["Clinica Vertex", "Alvo Infoprodutor", "Nobre Saude Integrada"],
+    "Sem Google Meu Negócio": [
+      "Ateliê Renove (sem GMN)",
+      "Studio Bem Estar (sem GMN)",
+      "Espaço Zen Terapias (sem GMN)",
+    ],
   };
 
   return selectedSources.flatMap((source) => {

@@ -81,6 +81,25 @@ export const GooglePlacesResponseSchema = z.object({
 });
 export type GooglePlacesResponse = z.infer<typeof GooglePlacesResponseSchema>;
 
+/**
+ * Resultado da detecção de presença no Google Meu Negócio.
+ *  - "has": encontrou ficha GMN com correspondência confiável (nome bate)
+ *  - "absent": nenhuma ficha correspondente encontrada → candidato a lead sem-GMN
+ *  - "unknown": houve resultado no Google, mas sem confiança suficiente de que é
+ *    o mesmo negócio (evita falso positivo). Não afirmamos nada.
+ */
+export type GmnPresence = "has" | "absent" | "unknown";
+
+export type GmnDetectionResult = {
+  presence: GmnPresence;
+  /** Nome da ficha do Google que casou (quando presence="has"). */
+  matchedName?: string;
+  /** Similaridade calculada 0–1 (para diagnóstico/logs). */
+  similarity?: number;
+  /** Link da ficha no Maps, quando encontrada. */
+  mapsUri?: string;
+};
+
 export const GenericConnectorPayloadSchema = z.array(z.record(z.string(), z.unknown()));
 
 // --- Google Custom Search JSON API schemas ---

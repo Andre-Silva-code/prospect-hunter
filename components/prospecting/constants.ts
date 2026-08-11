@@ -21,6 +21,12 @@ export const SOURCE_CHANNELS: Array<{ id: LeadSource; label: string; desc: strin
       desc: "Empresas com reputação local e intenção de compra clara.",
       icon: "📍",
     },
+    {
+      id: "Sem Google Meu Negócio",
+      label: "Sem Google Meu Negócio",
+      desc: "Negócios no Instagram/Facebook que ainda não têm ficha no Google — prontos para implementação.",
+      icon: "🎯",
+    },
   ];
 
 export const BRAZILIAN_STATES = [

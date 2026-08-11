@@ -118,6 +118,53 @@ describe("outreach-orchestrator", () => {
     expect(result.reason).toContain("Enfileirado");
   });
 
+  // ─── Funil Sem GMN ─────────────────────────────────────────────────────────
+
+  const semGmnLead: LeadRecord = {
+    ...sampleLead,
+    id: "lead-semgmn-1",
+    source: "Sem Google Meu Negócio",
+    // Score baixo é esperado nesses leads (não ter GMN é o gatilho).
+    score: 25,
+    priority: "Baixa",
+    // Telefone já presente no contact → enriquecimento nem é acionado.
+    contact: "+55 11 98765-4321",
+  };
+
+  it("initiateSemGmnOutreach rejects non-SemGmn leads", async () => {
+    const { initiateSemGmnOutreach } = await import("@/lib/outreach-orchestrator");
+    const result = await initiateSemGmnOutreach("user-1", sampleLead);
+    expect(result.queued).toBe(false);
+    expect(result.reason).toContain("nao e Sem GMN");
+  });
+
+  it("initiateSemGmnOutreach enfileira lead de score baixo (isento do mínimo)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ exists: true, jid: "5511987654321@s.whatsapp.net" }),
+      })
+    );
+
+    const { initiateSemGmnOutreach } = await import("@/lib/outreach-orchestrator");
+    // score 25 estaria abaixo do mínimo (65), mas sem-GMN é isento.
+    const result = await initiateSemGmnOutreach("user-1", semGmnLead);
+    expect(result.queued).toBe(true);
+    expect(result.reason).toContain("Sem GMN");
+  });
+
+  it("initiateSemGmnOutreach marca contato manual quando sem telefone descobrível", async () => {
+    // contact é uma URL (sem telefone) e, sem SERPER_API_KEY no ambiente de
+    // teste, o enriquecimento não faz chamadas e retorna vazio.
+    const { initiateSemGmnOutreach } = await import("@/lib/outreach-orchestrator");
+    const noPhone = { ...semGmnLead, contact: "https://instagram.com/negocio" };
+    const result = await initiateSemGmnOutreach("user-1", noPhone);
+    expect(result.queued).toBe(false);
+    expect(result.reason).toContain("contatar manualmente");
+  });
+
   it("verifyAndSchedule marks phone_invalid when number not on WhatsApp", async () => {
     vi.stubGlobal(
       "fetch",
@@ -303,5 +350,16 @@ describe("WhatsApp message templates", () => {
 
     expect(msg).toContain("Clinica Aurora");
     expect(msg).toContain("passagem");
+  });
+
+  it("generateSemGmnWhatsAppMessage foca em implementação (não otimização)", async () => {
+    const { generateSemGmnWhatsAppMessage } = await import("@/lib/outreach-message");
+    const msg = generateSemGmnWhatsAppMessage({
+      company: "Estúdio Bella",
+      region: "Campinas, São Paulo",
+      niche: "estética",
+    });
+    expect(msg).toMatch(/não aparecem no Google Meu Negócio/i);
+    expect(msg).toMatch(/implemento a ficha completa/i);
   });
 });
