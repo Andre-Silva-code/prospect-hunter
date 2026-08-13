@@ -16,6 +16,7 @@ import {
   generateGmnFollowUpMessage,
   generateSemGmnWhatsAppMessage,
   generateSemGmnFollowUpMessage,
+  generateSemGmnPostPreviewMessage,
   generatePostAnalysisMessage,
   generateInstagramWhatsAppMessage,
   generateInstagramFollowUpMessage,
@@ -351,6 +352,40 @@ export async function sendGbpCheckReport(
 }
 
 /**
+ * Inicia a sequência de pós-prévia para um lead "Sem Google Meu Negócio".
+ *
+ * Disparado manualmente pelo operador (botão "Enviar prévia") DEPOIS de já ter
+ * enviado ao lead a prévia/mockup de como a ficha ficaria. Aqui o sistema envia
+ * a Mensagem 1 (confirma a prévia + link de agenda) e marca o status como
+ * `pdf_sent`, que faz a rotina de follow-up continuar a sequência (D+2, D+4).
+ */
+export async function startSemGmnPostPreview(
+  item: OutreachQueueItem,
+  lead: LeadRecord
+): Promise<{ success: boolean; error: string | null }> {
+  if (!item.whatsappJid) {
+    return { success: false, error: "JID ausente" };
+  }
+  if (lead.source !== "Sem Google Meu Negócio") {
+    return { success: false, error: "Lead não é Sem GMN" };
+  }
+
+  const message = generateSemGmnPostPreviewMessage({ company: lead.company }, 1);
+  const sendResult = await sendTextMessage(item.whatsappJid, message);
+  if (!sendResult.success) {
+    return { success: false, error: sendResult.error };
+  }
+
+  // Reaproveita o status pdf_sent (mesmo ciclo do pós-análise: D+2 e D+4).
+  await updateQueueItem(item.id, {
+    status: "pdf_sent",
+    messageId: sendResult.messageId,
+  });
+
+  return { success: true, error: null };
+}
+
+/**
  * Envia follow-up para leads que não responderam.
  * Chamado pelo cron diário.
  */
@@ -419,7 +454,12 @@ export async function processPostAnalysisFollowUp(
     return { success: false, error: "JID ausente" };
   }
 
-  const message = generatePostAnalysisMessage({ company: lead.company }, step);
+  // Leads sem-GMN usam a copy de pós-prévia (venda de implementação);
+  // os demais usam a copy de pós-análise do GMN.
+  const message =
+    lead.source === "Sem Google Meu Negócio"
+      ? generateSemGmnPostPreviewMessage({ company: lead.company }, step)
+      : generatePostAnalysisMessage({ company: lead.company }, step);
   const sendResult = await sendTextMessage(item.whatsappJid, message);
 
   if (!sendResult.success) {

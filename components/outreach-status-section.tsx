@@ -109,8 +109,28 @@ export function OutreachStatusSection({ leads }: Props) {
     return () => clearInterval(interval);
   }, [fetchItems]);
 
-  const getLeadName = (leadId: string) =>
-    leads.find((l) => l.id === leadId)?.company || "Lead desconhecido";
+  const getLead = (leadId: string) => leads.find((l) => l.id === leadId);
+  const getLeadName = (leadId: string) => getLead(leadId)?.company || "Lead desconhecido";
+
+  // Envia a prévia (pós-prévia) para um lead sem-GMN.
+  const [sendingPreview, setSendingPreview] = useState<string | null>(null);
+  const handleSendPreview = async (leadId: string) => {
+    setSendingPreview(leadId);
+    try {
+      const res = await fetch("/api/outreach/send-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      if (res.ok) {
+        await fetchItems();
+      }
+    } catch {
+      /* silencioso */
+    } finally {
+      setSendingPreview(null);
+    }
+  };
 
   // Contadores por status
   const counts = items.reduce<Record<string, number>>((acc, item) => {
@@ -500,6 +520,20 @@ export function OutreachStatusSection({ leads }: Props) {
                       <p className="mt-0.5 text-xs text-[#a8937a]">{item.phone}</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {getLead(item.leadId)?.source === "Sem Google Meu Negócio" &&
+                        item.status === "sent" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleSendPreview(item.leadId);
+                            }}
+                            disabled={sendingPreview === item.leadId}
+                            title="Envia a Mensagem 1 de pós-prévia (com link de agenda) e inicia a sequência D+2/D+4"
+                            className="flex items-center gap-1 rounded-full bg-emerald-900/30 px-2.5 py-0.5 text-[10px] font-bold tracking-[0.04em] text-emerald-400 transition-colors hover:bg-emerald-900/50 disabled:opacity-50"
+                          >
+                            {sendingPreview === item.leadId ? "Enviando..." : "Enviar prévia"}
+                          </button>
+                        )}
                       {canRetry && (
                         <button
                           onClick={(e) => {

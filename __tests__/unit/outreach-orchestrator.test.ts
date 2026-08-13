@@ -165,6 +165,39 @@ describe("outreach-orchestrator", () => {
     expect(result.reason).toContain("contatar manualmente");
   });
 
+  it("startSemGmnPostPreview rejeita lead que não é Sem GMN", async () => {
+    const { startSemGmnPostPreview } = await import("@/lib/outreach-orchestrator");
+    const item = { id: "q1", whatsappJid: "5511987654321@s.whatsapp.net" } as never;
+    const result = await startSemGmnPostPreview(item, sampleLead); // sampleLead = GMN
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("não é Sem GMN");
+  });
+
+  it("startSemGmnPostPreview envia a msg 1 e marca pdf_sent", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ messageId: "msg-1", status: "sent" }),
+      })
+    );
+
+    const { startSemGmnPostPreview } = await import("@/lib/outreach-orchestrator");
+    const { enqueueOutreach, updateQueueItem, getQueueItemByLeadId } =
+      await import("@/lib/outreach-queue");
+
+    const item = await enqueueOutreach("user-1", "lead-preview", "5511987654321");
+    await updateQueueItem(item.id, { whatsappJid: "5511987654321@s.whatsapp.net" });
+    const ready = await getQueueItemByLeadId("lead-preview");
+
+    const result = await startSemGmnPostPreview(ready!, semGmnLead);
+    expect(result.success).toBe(true);
+
+    const updated = await getQueueItemByLeadId("lead-preview");
+    expect(updated!.status).toBe("pdf_sent");
+  });
+
   it("verifyAndSchedule marks phone_invalid when number not on WhatsApp", async () => {
     vi.stubGlobal(
       "fetch",
