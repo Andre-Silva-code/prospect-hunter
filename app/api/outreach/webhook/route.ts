@@ -16,24 +16,51 @@ type UazapiWebhookPayload = {
 };
 
 /**
- * Padrões de resposta negativa — lead não tem interesse.
- * Quando detectado, ignora a mensagem sem avançar o card.
+ * Padrões de recusa EXPLÍCITA — inequívocos, sempre contam como negativa
+ * (mesmo que a mensagem tenha algum sinal de interesse junto).
  */
-const negativePatterns = [
-  /\bnão\b/,
-  /\bnao\b/,
+const strongNegativePatterns = [
   /\bn[aã]o quero\b/,
+  /\bn[aã]o tenho interesse\b/,
+  /\bsem interesse\b/,
+  /\bn[aã]o preciso\b/,
+  /\bn[aã]o obrigad[oa]\b/,
+  /\bobrigad[oa],?\s+n[aã]o\b/,
   /\bnegativo\b/,
   /\bdispenso\b/,
-  /\bnão preciso\b/,
-  /\bnao preciso\b/,
-  /\bnão tenho interesse\b/,
-  /\bnao tenho interesse\b/,
-  /\bdeixa pra l[aá]\b/,
-  /\bobrigado n[aã]o\b/,
-  /\bn[aã]o obrigado\b/,
+  /\bdeixa pra l[aá]/,
+  /\bn[aã]o me interessa\b/,
+  /\bpare de (enviar|mandar)\b/,
+  /\bn[aã]o mande? mais\b/,
   /\bnope\b/,
-  /^\s*n\s*$/,
+];
+
+/**
+ * Negativa FRACA — um "não"/"n" solto. Só vale como recusa se a mensagem NÃO
+ * demonstrar interesse (senão seria um falso negativo, ex.: "não sabia, quero!").
+ */
+const weakNegativePatterns = [/\bn[aã]o\b/, /^\s*n\s*$/];
+
+/**
+ * Sinais de INTERESSE — se presentes, a mensagem não deve ser tratada como
+ * recusa por causa de um "não" solto.
+ */
+const interestPatterns = [
+  /\bquero\b/,
+  /\bgostei\b/,
+  /\btenho interesse\b/,
+  /\bme (conta|fala|explica|mostra|envia|manda)\b/,
+  /\bcomo funciona\b/,
+  /\bquanto (custa|fica|é)\b/,
+  /\bpode (mandar|enviar|explicar|falar)\b/,
+  /\bmais informa[çc][õo]es\b/,
+  /\binteressante\b/,
+  /\bvamos\b/,
+  /\bbora\b/,
+  /\bsim\b/,
+  /\bclaro\b/,
+  /\bpor favor\b/,
+  /\bagenda[r]?\b/,
 ];
 
 /**
@@ -145,8 +172,29 @@ function isBot(message: string): boolean {
   return botPatterns.some((pattern) => pattern.test(message));
 }
 
-function isNegative(message: string): boolean {
-  return negativePatterns.some((pattern) => pattern.test(message));
+function hasInterestSignal(message: string): boolean {
+  return interestPatterns.some((pattern) => pattern.test(message));
+}
+
+/**
+ * Decide se a resposta é uma recusa.
+ *  - Recusa explícita → sempre negativa.
+ *  - "não"/"n" solto → só é negativa se NÃO houver sinal de interesse na
+ *    mensagem (evita falso negativo em frases como "não sabia, quero saber!").
+ *
+ * Exportada para testes unitários.
+ */
+export function isNegative(message: string): boolean {
+  // Normaliza para funcionar independente de quem chama (o webhook já envia em
+  // minúsculas, mas a função fica robusta por si só).
+  const text = message.toLowerCase();
+  if (strongNegativePatterns.some((pattern) => pattern.test(text))) {
+    return true;
+  }
+  if (weakNegativePatterns.some((pattern) => pattern.test(text))) {
+    return !hasInterestSignal(text);
+  }
+  return false;
 }
 
 function isQualificationConfirm(message: string): boolean {
