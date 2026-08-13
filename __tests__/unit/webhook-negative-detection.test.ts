@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isNegative } from "@/app/api/outreach/webhook/route";
+import { isNegative } from "@/lib/outreach-reply-classifier";
 
 describe("isNegative — recusas explícitas (sempre negativas)", () => {
   const recusas = [
