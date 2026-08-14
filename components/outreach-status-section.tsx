@@ -112,21 +112,31 @@ export function OutreachStatusSection({ leads }: Props) {
   const getLead = (leadId: string) => leads.find((l) => l.id === leadId);
   const getLeadName = (leadId: string) => getLead(leadId)?.company || "Lead desconhecido";
 
-  // Envia a prévia (pós-prévia) para um lead sem-GMN.
+  // Envia a prévia (pós-prévia) para um lead sem-GMN, opcionalmente com o PDF.
   const [sendingPreview, setSendingPreview] = useState<string | null>(null);
   const handleSendPreview = async (leadId: string) => {
+    const pdfUrl = window.prompt(
+      "Cole o link do PDF da prévia (Google Drive público, ou URL direta). " +
+        "Deixe em branco para enviar só a mensagem, sem anexo:"
+    );
+    // prompt retorna null se o usuário cancelar → aborta.
+    if (pdfUrl === null) return;
+
     setSendingPreview(leadId);
     try {
       const res = await fetch("/api/outreach/send-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId }),
+        body: JSON.stringify({ leadId, pdfUrl: pdfUrl.trim() || undefined }),
       });
       if (res.ok) {
         await fetchItems();
+      } else {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        window.alert(data.error ?? "Falha ao enviar a prévia.");
       }
     } catch {
-      /* silencioso */
+      window.alert("Erro de conexão ao enviar a prévia.");
     } finally {
       setSendingPreview(null);
     }

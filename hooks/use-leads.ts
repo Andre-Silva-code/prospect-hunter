@@ -504,12 +504,19 @@ export function useLeads(userId: string): UseLeadsReturn {
   };
 
   const sendGbpReport = async (leadId: string): Promise<void> => {
+    const pdfUrl = window.prompt(
+      "Cole o link do PDF do relatório (Google Drive público ou URL direta) para " +
+        "o sistema enviar automaticamente. Deixe em branco se você já enviou o PDF à mão:"
+    );
+    // prompt retorna null se o usuário cancelar → aborta.
+    if (pdfUrl === null) return;
+
     setGbpReportSendingLeadId(leadId);
     try {
       const res = await fetch("/api/outreach/mark-report-sent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId }),
+        body: JSON.stringify({ leadId, pdfUrl: pdfUrl.trim() || undefined }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
