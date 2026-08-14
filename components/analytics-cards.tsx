@@ -26,7 +26,12 @@ function metricsToKpis(metrics: DashboardMetrics): KpiCard[] {
     {
       label: "Taxa de resposta",
       value: formatPercent(metrics.responseRate),
-      detail: `${metrics.contactedThisWeek} contatados esta semana`,
+      detail: "Qualquer resposta (inclui recusas)",
+    },
+    {
+      label: "Taxa de resposta positiva",
+      value: formatPercent(metrics.positiveResponseRate),
+      detail: "Só quem demonstrou interesse",
     },
     {
       label: "Taxa de conversão",
@@ -72,6 +77,7 @@ export default function AnalyticsCards() {
         setKpis([
           { label: "Total de leads", value: "0", detail: "Nenhum lead cadastrado ainda" },
           { label: "Taxa de resposta", value: "0%", detail: "Comece a prospectar" },
+          { label: "Taxa de resposta positiva", value: "0%", detail: "Comece a prospectar" },
           { label: "Taxa de conversão", value: "0%", detail: "Nenhum fechamento ainda" },
           { label: "Follow-ups pendentes", value: "0", detail: "Nada agendado" },
         ]);

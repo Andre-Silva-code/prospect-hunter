@@ -77,6 +77,26 @@ describe("calculateMetrics", () => {
     expect(metrics.responseRate).toBe(0.5);
   });
 
+  it("separa taxa de resposta total (inclui recusa) da positiva (só interesse)", () => {
+    const leads = [
+      // 4 contatados
+      buildLead({ id: "1", contactStatus: "Mensagem enviada", stage: "Contato" }),
+      // resposta positiva (respondeu, não foi para Perdido)
+      buildLead({ id: "2", contactStatus: "Respondeu", stage: "Diagnóstico" }),
+      // resposta negativa (respondeu, mas virou recusa → Perdido)
+      buildLead({ id: "3", contactStatus: "Respondeu", stage: "Perdido" }),
+      // sem resposta
+      buildLead({ id: "4", contactStatus: "Mensagem enviada", stage: "Contato" }),
+    ];
+
+    const metrics = calculateMetrics(leads, now);
+
+    // Total: 2 responderam / 4 contatados = 0.5
+    expect(metrics.responseRate).toBe(0.5);
+    // Positiva: 1 respondeu com interesse / 4 contatados = 0.25
+    expect(metrics.positiveResponseRate).toBe(0.25);
+  });
+
   it("calculates conversion rate", () => {
     const leads = [
       buildLead({ id: "1", stage: "Fechado" }),
