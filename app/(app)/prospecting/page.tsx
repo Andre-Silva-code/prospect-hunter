@@ -312,6 +312,14 @@ export default function ProspectingPage() {
   const deselectAll = () => setSelectedLeadIds([]);
 
   const handleDirectProspecting = async (lead: ProspectResult) => {
+    // Leads "Sem Google Meu Negócio" seguem o fluxo automático (salvar no CRM →
+    // backend enriquece o telefone e dispara a mensagem SPIN), em vez de abrir o
+    // perfil para contato manual.
+    if (lead.source === "Sem Google Meu Negócio") {
+      await handleGmnAudit(lead);
+      return;
+    }
+
     const msg = `Olá, time da ${lead.company}. Vi uma oportunidade em ${lead.source} para melhorar a geração de leads de ${lead.niche}. Posso te mostrar rapidamente?`;
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(msg);
