@@ -15,7 +15,13 @@ import { logger } from "@/lib/logger";
 type UazapiWebhookPayload = {
   event?: string;
   data?: {
+    // Remetente. O WhatsApp moderno pode entregar `sender`/`from` no formato
+    // "@lid" (que NÃO é o telefone). O `chatid` traz o número real
+    // (…@s.whatsapp.net) — por isso é a fonte preferida para casar o lead.
     from?: string;
+    sender?: string;
+    chatid?: string;
+    chatId?: string;
     messageId?: string;
     body?: string;
   };
@@ -32,13 +38,22 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const payload = (await request.json()) as UazapiWebhookPayload;
-    const senderJid = payload.data?.from;
+    // Prioriza o chatid (telefone real …@s.whatsapp.net) sobre sender/from, que
+    // podem vir como "@lid" e não casariam com o número salvo na fila.
+    const senderJid =
+      payload.data?.chatid ?? payload.data?.chatId ?? payload.data?.from ?? payload.data?.sender;
 
     if (!senderJid) {
       return NextResponse.json({ status: "ignored", reason: "no sender" });
     }
 
-    logger.info("Webhook received", { event: payload.event, from: senderJid });
+    logger.info("Webhook received", {
+      event: payload.event,
+      from: senderJid,
+      rawFrom: payload.data?.from,
+      sender: payload.data?.sender,
+      chatid: payload.data?.chatid ?? payload.data?.chatId,
+    });
 
     const messageBody = (payload.data?.body ?? "").trim().toLowerCase();
 

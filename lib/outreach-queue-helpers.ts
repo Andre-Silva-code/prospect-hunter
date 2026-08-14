@@ -24,6 +24,32 @@ const ACTIVE_STATUSES = [
  * Busca um item na fila de outreach pelo JID do WhatsApp.
  * Inclui "awaiting_qualification" para capturar respostas tardias à pergunta de qualificação.
  */
+/**
+ * Extrai os dígitos "de telefone" de um JID do WhatsApp. Para o formato padrão
+ * (5511999998888@s.whatsapp.net) retorna os dígitos do número. Para o formato
+ * @lid (144770546561049@lid) os dígitos NÃO são o telefone, então devolve "".
+ */
+export function phoneDigitsFromJid(jid: string | null | undefined): string {
+  if (!jid) return "";
+  if (/@lid$/i.test(jid)) return ""; // lid não é telefone
+  const digits = jid.split("@")[0].replace(/\D/g, "");
+  return digits;
+}
+
+/**
+ * Compara dois números de telefone de forma tolerante ao 9º dígito de celular
+ * brasileiro e a variações de formato. Ex.: 5511988887777 ≈ 551188887777.
+ */
+export function phonesMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // Compara os últimos 8 dígitos (assinante), que são estáveis independente de
+  // DDI/DDD/9º dígito — reduz falsos negativos sem colidir na prática.
+  const tailA = a.slice(-8);
+  const tailB = b.slice(-8);
+  return tailA.length === 8 && tailA === tailB;
+}
+
 export async function listAllOutreachItems(whatsappJid: string): Promise<OutreachQueueItem | null> {
   if (getSupabaseUrl() && getSupabaseAnonKey()) {
     return findByJidSupabase(whatsappJid);
@@ -31,11 +57,29 @@ export async function listAllOutreachItems(whatsappJid: string): Promise<Outreac
   return findByJidFile(whatsappJid);
 }
 
+/**
+ * Casa um item da fila com o remetente da resposta. Tenta, em ordem:
+ *  1) JID idêntico ao salvo;
+ *  2) telefone do remetente (dígitos do JID) ≈ campo `phone` do item.
+ * Isso tolera o WhatsApp entregar o `from` em formato diferente do salvo
+ * (ex.: @s.whatsapp.net vs variações do número).
+ */
+function itemMatchesSender(item: OutreachQueueItem, senderJid: string): boolean {
+  if (!ACTIVE_STATUSES.includes(item.status)) return false;
+  if (item.whatsappJid && item.whatsappJid === senderJid) return true;
+
+  const senderDigits = phoneDigitsFromJid(senderJid);
+  if (senderDigits && item.phone) {
+    return phonesMatch(senderDigits, item.phone.replace(/\D/g, ""));
+  }
+  return false;
+}
+
 async function findByJidFile(jid: string): Promise<OutreachQueueItem | null> {
   try {
     const raw = await readFile(queueFilePath, "utf8");
     const items = JSON.parse(raw) as OutreachQueueItem[];
-    return items.find((i) => i.whatsappJid === jid && ACTIVE_STATUSES.includes(i.status)) ?? null;
+    return items.find((i) => itemMatchesSender(i, jid)) ?? null;
   } catch {
     return null;
   }
@@ -64,22 +108,40 @@ async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null>
   if (!supabaseUrl || !supabaseAnonKey) return null;
 
   const statusList = ACTIVE_STATUSES.join(",");
+  const headers = {
+    apikey: supabaseAnonKey,
+    Authorization: `Bearer ${serviceRoleKey ?? supabaseAnonKey}`,
+  };
 
   try {
-    const response = await fetch(
+    // 1) Tentativa rápida: JID idêntico ao salvo.
+    const exact = await fetch(
       `${supabaseUrl}/rest/v1/outreach_queue?whatsapp_jid=eq.${encodeURIComponent(jid)}&status=in.(${statusList})&limit=1`,
-      {
-        headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${serviceRoleKey ?? supabaseAnonKey}`,
-        },
-        cache: "no-store",
-      }
+      { headers, cache: "no-store" }
     );
+    if (exact.ok) {
+      const rows = (await exact.json()) as OutreachQueueItem[];
+      if (rows[0]) return rows[0];
+    }
 
-    if (!response.ok) return null;
-    const payload = (await response.json()) as OutreachQueueItem[];
-    return payload[0] ?? null;
+    // 2) Fallback: casa pelo telefone do remetente (tolera formatos de JID
+    //    diferentes do salvo, ex.: variações de número). Busca os itens ativos
+    //    e compara em memória.
+    const senderDigits = phoneDigitsFromJid(jid);
+    if (!senderDigits) return null;
+
+    const active = await fetch(
+      `${supabaseUrl}/rest/v1/outreach_queue?status=in.(${statusList})&order=updated_at.desc&limit=200`,
+      { headers, cache: "no-store" }
+    );
+    if (!active.ok) return null;
+
+    const rows = (await active.json()) as Array<Record<string, unknown>>;
+    const match = rows.find((r) => {
+      const phone = String(r.phone ?? "").replace(/\D/g, "");
+      return phonesMatch(senderDigits, phone);
+    });
+    return (match as OutreachQueueItem | undefined) ?? null;
   } catch {
     return null;
   }
