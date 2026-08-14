@@ -98,7 +98,7 @@ export function MetricsSection({ metrics }: { metrics: Metrics }): React.ReactEl
         icon={<IconPercent />}
         label="Taxa de resposta"
         value={`${metrics.responseRate}%`}
-        detail="Sobre contatados"
+        detail="Inclui recusas"
         accent="#7a3420"
       />
     </section>

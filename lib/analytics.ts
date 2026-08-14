@@ -5,7 +5,10 @@ export type DashboardMetrics = {
   totalLeads: number;
   leadsByStage: Record<PipelineStage, number>;
   leadsBySource: Partial<Record<LeadSource, number>>;
+  /** Taxa de resposta total: qualquer resposta (positiva OU negativa) / contatados. */
   responseRate: number;
+  /** Taxa de resposta positiva: respostas que demonstraram interesse (exclui recusas) / contatados. */
+  positiveResponseRate: number;
   conversionRate: number;
   avgScore: number;
   followUpsPending: number;
@@ -43,6 +46,12 @@ export function calculateMetrics(leads: LeadRecord[], now: Date = new Date()): D
   const responded = leads.filter((l) => l.contactStatus === "Respondeu");
   const responseRate = contacted.length > 0 ? responded.length / contacted.length : 0;
 
+  // Resposta positiva = respondeu e NÃO foi recusa. Recusas movem o lead para
+  // "Perdido" no webhook, então excluímos esse stage do numerador.
+  const positiveResponded = responded.filter((l) => l.stage !== "Perdido");
+  const positiveResponseRate =
+    contacted.length > 0 ? positiveResponded.length / contacted.length : 0;
+
   const closed = leads.filter((l) => l.stage === "Fechado");
   const conversionRate = totalLeads > 0 ? closed.length / totalLeads : 0;
 
@@ -75,6 +84,7 @@ export function calculateMetrics(leads: LeadRecord[], now: Date = new Date()): D
     leadsByStage,
     leadsBySource,
     responseRate,
+    positiveResponseRate,
     conversionRate,
     avgScore,
     followUpsPending,
