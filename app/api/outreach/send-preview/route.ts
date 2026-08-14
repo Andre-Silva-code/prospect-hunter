@@ -20,7 +20,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { leadId } = (await request.json().catch(() => ({}))) as { leadId?: string };
+  const { leadId, pdfUrl } = (await request.json().catch(() => ({}))) as {
+    leadId?: string;
+    pdfUrl?: string;
+  };
   if (!leadId) {
     return NextResponse.json({ error: "leadId obrigatorio" }, { status: 400 });
   }
@@ -61,7 +64,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const result = await startSemGmnPostPreview(queueItem, lead);
+    const result = await startSemGmnPostPreview(queueItem, lead, pdfUrl);
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 502 });
     }

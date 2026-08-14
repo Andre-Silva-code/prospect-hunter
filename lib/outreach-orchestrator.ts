@@ -11,6 +11,7 @@ import {
 import { enqueueOutreach, updateQueueItem } from "@/lib/outreach-queue";
 import { updateLeadRecord } from "@/lib/leads-repository";
 import { captureGbpCheckReport } from "@/lib/pdf/gbpcheck-capture";
+import { sendPdfFromUrl } from "@/lib/pdf/send-pdf-from-url";
 import {
   generateGmnWhatsAppMessage,
   generateGmnFollowUpMessage,
@@ -361,13 +362,29 @@ export async function sendGbpCheckReport(
  */
 export async function startSemGmnPostPreview(
   item: OutreachQueueItem,
-  lead: LeadRecord
+  lead: LeadRecord,
+  pdfUrl?: string
 ): Promise<{ success: boolean; error: string | null }> {
   if (!item.whatsappJid) {
     return { success: false, error: "JID ausente" };
   }
   if (lead.source !== "Sem Google Meu Negócio") {
     return { success: false, error: "Lead não é Sem GMN" };
+  }
+
+  // Se um link de PDF foi informado, envia a prévia como documento antes do texto.
+  if (pdfUrl && pdfUrl.trim().length > 0) {
+    const pdfResult = await sendPdfFromUrl({
+      jid: item.whatsappJid,
+      pdfUrl: pdfUrl.trim(),
+      caption: `Prévia de como a ficha da ${lead.company} ficaria no Google 👇`,
+      company: lead.company,
+      kind: "previa-gmn",
+    });
+    if (!pdfResult.success) {
+      // Falha no PDF não deve travar tudo, mas o operador precisa saber.
+      return { success: false, error: pdfResult.error ?? "Falha ao enviar o PDF da prévia" };
+    }
   }
 
   const message = generateSemGmnPostPreviewMessage({ company: lead.company }, 1);

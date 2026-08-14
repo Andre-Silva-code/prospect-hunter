@@ -7,6 +7,7 @@ import { enqueueOutreach, updateQueueItem } from "@/lib/outreach-queue";
 import { checkWhatsAppNumber, sendTextMessage } from "@/lib/connectors/uazapi";
 import { normalizePhoneForWhatsApp } from "@/lib/connectors/utils";
 import { generatePostAnalysisMessage } from "@/lib/outreach-message";
+import { sendPdfFromUrl } from "@/lib/pdf/send-pdf-from-url";
 import { logger } from "@/lib/logger";
 
 function extractPhoneFromContact(contact: string): string | null {
@@ -24,7 +25,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { leadId } = (await request.json()) as { leadId: string };
+  const { leadId, pdfUrl } = (await request.json()) as { leadId: string; pdfUrl?: string };
   if (!leadId) {
     return NextResponse.json({ error: "leadId obrigatório" }, { status: 400 });
   }
@@ -82,6 +83,22 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Proteção contra duplo envio: se já está em pdf_sent, não envia novamente
   if (outreachItem.status === "pdf_sent") {
     return NextResponse.json({ success: true, company: lead.company, alreadySent: true });
+  }
+
+  // 0. Se um link de PDF foi informado, envia o relatório como documento antes
+  //    do texto (elimina o envio manual). Sem link, mantém o comportamento antigo
+  //    (assume que o operador já enviou o PDF à mão).
+  if (pdfUrl && pdfUrl.trim().length > 0) {
+    const pdfResult = await sendPdfFromUrl({
+      jid: outreachItem.whatsappJid,
+      pdfUrl: pdfUrl.trim(),
+      caption: `Análise do perfil da ${lead.company} no Google 👇`,
+      company: lead.company,
+      kind: "relatorio-gmn",
+    });
+    if (!pdfResult.success) {
+      return NextResponse.json({ error: pdfResult.error }, { status: 502 });
+    }
   }
 
   // 1. Enviar Mensagem 1 pós-análise imediatamente
