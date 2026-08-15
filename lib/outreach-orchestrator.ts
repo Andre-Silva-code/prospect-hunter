@@ -162,6 +162,7 @@ export async function initiateSemGmnOutreach(
 
   // 1) Telefone já presente? (raro, mas possível se veio no contact)
   let phone = extractPhoneFromContact(lead.contact);
+  let discoveredByEnrichment = false;
 
   // 2) Se não, tenta descobrir via cascata de enriquecimento (grátis).
   // A URL do perfil/site do lead sem-GMN fica no campo `contact`.
@@ -169,11 +170,20 @@ export async function initiateSemGmnOutreach(
     const siteUrl = /^https?:\/\//i.test(lead.contact) ? lead.contact : undefined;
     const enrichment = await enrichSemGmnContact(lead.company, lead.region, siteUrl);
     phone = enrichment.phone;
+    discoveredByEnrichment = Boolean(phone);
   }
 
   // 3) Sem telefone descobrível → marca para contato manual (não é falha).
   if (!phone) {
     return { queued: false, reason: "Sem telefone — contatar manualmente via perfil" };
+  }
+
+  // Se o telefone foi DESCOBERTO (não veio no contact original), grava no lead
+  // para o card do CRM refletir o número — senão continuaria pedindo "adicionar
+  // telefone" mesmo já tendo um. Anexa ao contact preservando o link do perfil.
+  if (discoveredByEnrichment) {
+    const newContact = lead.contact ? `${lead.contact} | ${phone}` : phone;
+    await updateLeadRecord(userId, lead.id, { contact: newContact });
   }
 
   // Leads sem-GMN são isentos do score mínimo (score baixo é esperado).
