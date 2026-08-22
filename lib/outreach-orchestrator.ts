@@ -499,6 +499,14 @@ export async function processPostAnalysisFollowUp(
     messageId: sendResult.messageId,
   });
 
+  // Sincroniza o registro do lead com o follow-up disparado, para o card do CRM
+  // refletir o último contato (senão fica exibindo "Pendente"/sem data mesmo com
+  // a sequência já enviada).
+  await updateLeadRecord(item.userId, item.leadId, {
+    contactStatus: "Mensagem enviada",
+    lastContactAt: new Date().toISOString(),
+  });
+
   return { success: true, error: null };
 }
 
@@ -537,6 +545,13 @@ export async function processPostConsultingFollowUp(
   const nextStatus =
     step === 1 ? "consulting_done" : step === 2 ? "post_consulting_1" : "post_consulting_2";
   await updateQueueItem(item.id, { status: nextStatus, messageId: sendResult.messageId });
+
+  // Sincroniza o registro do lead com o follow-up disparado (mesma razão do
+  // pós-análise: manter o card do CRM coerente com o que foi enviado).
+  await updateLeadRecord(item.userId, item.leadId, {
+    contactStatus: "Mensagem enviada",
+    lastContactAt: new Date().toISOString(),
+  });
 
   return { success: true, error: null };
 }
