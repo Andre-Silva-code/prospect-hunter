@@ -218,6 +218,51 @@ describe("outreach-orchestrator", () => {
     expect(updated!.status).toBe("phone_invalid");
   });
 
+  it("verifyAndSchedule keeps item pending when WhatsApp is disconnected (HTTP 503)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({
+          error: true,
+          message: "WhatsApp disconnected: session is not reconnectable",
+        }),
+      })
+    );
+
+    const { verifyAndSchedule } = await import("@/lib/outreach-orchestrator");
+    const { enqueueOutreach, getQueueItemByLeadId } = await import("@/lib/outreach-queue");
+
+    const item = await enqueueOutreach("user-1", "lead-disc", "5511987654321");
+    await verifyAndSchedule(item);
+
+    const updated = await getQueueItemByLeadId("lead-disc");
+    // NÃO deve queimar o lead como phone_invalid — apenas adiar a verificação.
+    expect(updated!.status).toBe("pending");
+    expect(updated!.status).not.toBe("phone_invalid");
+  });
+
+  it("verifyAndSchedule keeps item pending when disconnected body comes with HTTP 200", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ error: true, message: "WhatsApp disconnected" }),
+      })
+    );
+
+    const { verifyAndSchedule } = await import("@/lib/outreach-orchestrator");
+    const { enqueueOutreach, getQueueItemByLeadId } = await import("@/lib/outreach-queue");
+
+    const item = await enqueueOutreach("user-1", "lead-disc2", "5511987654321");
+    await verifyAndSchedule(item);
+
+    const updated = await getQueueItemByLeadId("lead-disc2");
+    expect(updated!.status).toBe("pending");
+  });
+
   it("verifyAndSchedule sets scheduled status with future time", async () => {
     vi.stubGlobal(
       "fetch",

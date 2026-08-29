@@ -9,6 +9,7 @@ type OutreachStorage = {
   getByLeadId: (leadId: string) => Promise<OutreachQueueItem | null>;
   getByStatus: (userId: string, status: OutreachStatus) => Promise<OutreachQueueItem[]>;
   getDueItems: () => Promise<OutreachQueueItem[]>;
+  getPendingItems: () => Promise<OutreachQueueItem[]>;
   getFollowUpDue: (afterStatus: OutreachStatus, daysOld: number) => Promise<OutreachQueueItem[]>;
   getStuckSending: (minutesOld: number) => Promise<OutreachQueueItem[]>;
   update: (id: string, updates: Partial<OutreachQueueItem>) => Promise<OutreachQueueItem | null>;
@@ -97,6 +98,15 @@ export async function getDueOutreachItems(): Promise<OutreachQueueItem[]> {
   return getStorage().getDueItems();
 }
 
+/**
+ * Retorna itens em "pending": aguardando verificação de número no WhatsApp.
+ * Um item fica em pending quando a verificação foi adiada (ex.: instância
+ * offline). Usado pelo cron para re-tentar a verificação quando a sessão voltar.
+ */
+export async function getPendingOutreachItems(): Promise<OutreachQueueItem[]> {
+  return getStorage().getPendingItems();
+}
+
 export async function getFollowUpDueItems(
   afterStatus: OutreachStatus,
   daysOld: number
@@ -176,6 +186,11 @@ function createFileStorage(): OutreachStorage {
       return items.filter(
         (i) => i.status === "scheduled" && i.scheduledAt !== null && i.scheduledAt <= now
       );
+    },
+
+    getPendingItems: async () => {
+      const items = await readFileQueue();
+      return items.filter((i) => i.status === "pending");
     },
 
     getFollowUpDue: async (afterStatus, daysOld) => {
@@ -286,6 +301,16 @@ function createSupabaseStorage(): OutreachStorage {
         `${supabaseUrl}/rest/v1/outreach_queue?status=eq.scheduled&scheduled_at=lte.${encodeURIComponent(now)}`,
         { headers: baseHeaders, cache: "no-store" }
       );
+      const payload = (await response.json()) as unknown[];
+      if (!Array.isArray(payload)) return [];
+      return payload.map(normalizeRow).filter((i): i is OutreachQueueItem => i !== null);
+    },
+
+    getPendingItems: async () => {
+      const response = await fetch(`${supabaseUrl}/rest/v1/outreach_queue?status=eq.pending`, {
+        headers: baseHeaders,
+        cache: "no-store",
+      });
       const payload = (await response.json()) as unknown[];
       if (!Array.isArray(payload)) return [];
       return payload.map(normalizeRow).filter((i): i is OutreachQueueItem => i !== null);

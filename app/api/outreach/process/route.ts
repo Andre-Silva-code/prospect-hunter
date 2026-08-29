@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
-import { getDueOutreachItems, getStuckSendingItems, updateQueueItem } from "@/lib/outreach-queue";
+import {
+  getDueOutreachItems,
+  getPendingOutreachItems,
+  getStuckSendingItems,
+  updateQueueItem,
+} from "@/lib/outreach-queue";
 import { listLeads } from "@/lib/leads-repository";
-import { processScheduledOutreach } from "@/lib/outreach-orchestrator";
+import {
+  checkInstanceHealth,
+  processScheduledOutreach,
+  verifyAndSchedule,
+} from "@/lib/outreach-orchestrator";
 import { logger } from "@/lib/logger";
 import type { LeadRecord } from "@/types/prospecting";
 import type { OutreachStatus } from "@/types/outreach";
@@ -23,6 +32,36 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
+    // Guarda de saúde: se a instância do WhatsApp estiver desconectada, não faz
+    // sentido processar nada — cada verificação/envio falharia e queimaria leads
+    // como phone_invalid. Aborta cedo e (via checkInstanceHealth) alerta o dono.
+    const health = await checkInstanceHealth();
+    if (!health.healthy) {
+      logger.warn("Outreach abortado — WhatsApp desconectado", { reason: health.reason });
+      return NextResponse.json({
+        processed: 0,
+        failed: 0,
+        skipped: true,
+        reason: `WhatsApp desconectado: ${health.reason}`,
+      });
+    }
+
+    // Instância saudável: reprocessa itens que ficaram em "pending" porque a
+    // verificação foi adiada durante uma desconexão. Reexecuta a verificação de
+    // número (que agora pode agendá-los).
+    const pending = await getPendingOutreachItems();
+    if (pending.length > 0) {
+      for (const item of pending) {
+        await verifyAndSchedule(item).catch((error) => {
+          logger.warn("verifyAndSchedule falhou ao reprocessar pending", {
+            itemId: item.id,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        });
+      }
+      logger.info("Itens 'pending' reprocessados após reconexão", { count: pending.length });
+    }
+
     // Resgate de itens travados: "sending" é um status transitório (dura segundos).
     // Se o servidor reiniciar/der timeout no meio do envio, o item fica órfão em
     // "sending" para sempre. Aqui devolvemos para "scheduled" (com scheduledAt
