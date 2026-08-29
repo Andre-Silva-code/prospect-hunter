@@ -4,6 +4,7 @@ import { extractPhoneFromContact } from "@/lib/connectors/utils";
 import { enrichSemGmnContact } from "@/lib/connectors/sem-gmn-enrichment";
 import {
   checkWhatsAppNumber,
+  getInstanceStatus,
   isUazapiConfigured,
   sendDocumentMessage,
   sendTextMessage,
@@ -39,6 +40,50 @@ export async function notifyOwner(message: string): Promise<void> {
   if (!ownerPhone) return;
   const ownerJid = ownerPhone.startsWith("55") ? ownerPhone : `55${ownerPhone}`;
   sendTextMessage(ownerJid, message).catch(() => {});
+}
+
+/**
+ * Estado em memória para não spammar o dono com alertas de desconexão.
+ * Guarda o timestamp do último alerta enviado. Como o alerta de desconexão
+ * depende do próprio WhatsApp para chegar, o envio pode falhar enquanto offline —
+ * por isso o objetivo é apenas evitar tentativas repetidas a cada ciclo (2 min).
+ */
+let lastDisconnectAlertAt = 0;
+const DISCONNECT_ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1h
+
+/**
+ * Verifica a saúde da instância do WhatsApp antes de processar a fila.
+ *
+ * Retorna { healthy: false } quando a sessão está offline — nesse caso o cron
+ * NÃO deve tentar enviar/verificar nada (evita queimar leads como phone_invalid)
+ * e o dono é alertado (no máximo 1x por hora).
+ */
+export async function checkInstanceHealth(): Promise<{ healthy: boolean; reason: string }> {
+  if (!isUazapiConfigured()) {
+    return { healthy: false, reason: "Uazapi nao configurado" };
+  }
+
+  const status = await getInstanceStatus();
+
+  if (status.connected && status.loggedIn) {
+    return { healthy: true, reason: "connected" };
+  }
+
+  const reason = status.error ?? `status=${status.status ?? "desconhecido"}`;
+
+  // Alerta o dono, respeitando o cooldown de 1h.
+  const now = Date.now();
+  if (now - lastDisconnectAlertAt >= DISCONNECT_ALERT_COOLDOWN_MS) {
+    lastDisconnectAlertAt = now;
+    await notifyOwner(
+      `🔴 WhatsApp DESCONECTADO — nenhuma mensagem está sendo enviada.\n\n` +
+        `Motivo: ${reason}\n\n` +
+        `Reconecte a instância no painel da Uazapi (escaneie o QR Code) para retomar o outreach. ` +
+        `Os leads em fila serão reprocessados automaticamente assim que a conexão voltar.`
+    );
+  }
+
+  return { healthy: false, reason };
 }
 
 /**
@@ -199,6 +244,17 @@ export async function initiateSemGmnOutreach(
  */
 export async function verifyAndSchedule(item: OutreachQueueItem): Promise<void> {
   const check = await checkWhatsAppNumber(item.phone);
+
+  // Instância offline: NÃO marcar como phone_invalid (o número pode ser válido).
+  // Mantém o item como "pending" para ser reprocessado quando a sessão voltar,
+  // e grava o motivo para diagnóstico.
+  if (check.unavailable) {
+    await updateQueueItem(item.id, {
+      status: "pending",
+      lastError: "WhatsApp desconectado — verificação adiada",
+    });
+    return;
+  }
 
   if (!check.exists) {
     await updateQueueItem(item.id, {
