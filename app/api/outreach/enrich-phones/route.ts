@@ -65,9 +65,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       const enrichment = await enrichLeadPhone(lead, currentPhone);
 
       if (!enrichment.phone) {
-        // Nenhuma das 3 camadas achou — marca motivo para o Kanban e segue.
+        // Nenhuma das 4 camadas achou — marca motivo para o Kanban e segue.
         await updateQueueItem(item.id, {
-          lastError: "WhatsApp não encontrado (3 camadas) — adicione manualmente",
+          lastError: "WhatsApp não encontrado (4 camadas) — adicione manualmente",
         });
         results.push({ leadId: lead.id, company: lead.company, action: "not_found" });
         continue;
