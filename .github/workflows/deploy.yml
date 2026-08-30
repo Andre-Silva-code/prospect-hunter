@@ -1,11 +1,19 @@
-name: Deploy to Vercel
+name: Build Check
+
+# O deploy de produção é feito pelo EasyPanel (build via Dockerfile), não por
+# este workflow. Antes este arquivo tentava deployar na Vercel — mas os secrets
+# do Vercel nunca existiram e a condição `if` acessava o contexto `secrets`
+# diretamente, o que é inválido e derrubava o workflow inteiro (falha em 0s).
+#
+# Agora ele apenas valida que a aplicação BUILDA no push da main — pegando erros
+# de build (que lint/testes do ci.yml não pegam) antes de o EasyPanel tentar.
 
 on:
   push:
     branches: [main]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,10 +27,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Deploy to Vercel
-        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
-        run: |
-          npm install --global vercel@latest
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
