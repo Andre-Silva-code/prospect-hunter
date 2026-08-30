@@ -6,6 +6,7 @@ import { getQueueItemsByStatus, updateQueueItem } from "@/lib/outreach-queue";
 import { verifyAndSchedule } from "@/lib/outreach-orchestrator";
 import { extractPhoneFromContact } from "@/lib/connectors/utils";
 import { enrichLeadPhone } from "@/lib/connectors/phone-enrichment";
+import { checkApifyCredit } from "@/lib/connectors/apify-config";
 import { logger } from "@/lib/logger";
 
 type EnrichResult = {
@@ -44,6 +45,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     const batchSize = Math.max(1, parseInt(process.env.ENRICH_BATCH_SIZE ?? "5", 10) || 5);
     const invalidItems = allInvalidItems.slice(0, batchSize);
     const remaining = allInvalidItems.length - invalidItems.length;
+
+    // Alerta o dono se o crédito Apify estiver baixo — as Camadas 3 e 4 dependem
+    // dele e param silenciosamente quando o crédito acaba. Fire-and-forget para
+    // não atrasar o enriquecimento (respeita cooldown interno de 1h).
+    checkApifyCredit().catch(() => {});
 
     const leads = await listLeads(userId);
     const leadMap = new Map(leads.map((l) => [l.id, l]));
