@@ -106,6 +106,13 @@ export function normalizeApifyItem(
     const whatsapp = extractWhatsAppFromBio(description);
     const contact = whatsapp ?? `@${username}`;
 
+    // Qualificação de fit: no Instagram só temos um sinal confiável — se há um
+    // WhatsApp na bio (define abordabilidade). GMN/site/nota são desconhecidos,
+    // então ficam undefined e qualifyLead assume neutro para eles.
+    const qualification = qualifyLead({
+      hasValidPhone: whatsapp ? true : undefined,
+    });
+
     return {
       id: `Instagram-${index}-${username}`,
       company,
@@ -119,6 +126,9 @@ export function normalizeApifyItem(
       icp: request.icp,
       contact,
       sourceUrl: `https://www.instagram.com/${username}/`,
+      qualificationScore: qualification.qualificationScore,
+      funnel: qualification.funnel,
+      contactable: qualification.contactable,
     };
   }
 
@@ -196,6 +206,18 @@ export function normalizeApifyItem(
 
   const baseScore = normalizeScore(computedScore, `${company}-${source}-${index}`);
 
+  // Qualificação de fit: deriva os sinais dos dados já extraídos do item Apify.
+  // Fonte Google (Maps/GMN) garante perfil GMN (Funil A); demais fontes não sabem
+  // (undefined → Funil B por padrão da qualifyLead). rating/reviews só existem
+  // para fontes Google, então ficam undefined nas demais e não distorcem o score.
+  const qualification = qualifyLead({
+    hasGoogleProfile: isGoogleSource ? true : undefined,
+    hasWebsite: website ? true : undefined,
+    hasValidPhone: businessPhone ? true : undefined,
+    rating: isGoogleSource ? totalStarRating : undefined,
+    reviewCount: reviews,
+  });
+
   return {
     id: `${source}-${index}-${hash(`${company}-${region}`)}`,
     company,
@@ -212,6 +234,9 @@ export function normalizeApifyItem(
       source === "Google Meu Negócio"
         ? `https://www.google.com/search?q=${encodeURIComponent(company + " " + (region || request.region))}`
         : (sourceUrl ?? undefined),
+    qualificationScore: qualification.qualificationScore,
+    funnel: qualification.funnel,
+    contactable: qualification.contactable,
   };
 }
 
