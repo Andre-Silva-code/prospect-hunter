@@ -2,16 +2,18 @@
 
 [![CI](https://github.com/your-username/prospect-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/prospect-hunter/actions/workflows/ci.yml)
 
-Automated prospect hunting system with Instagram scraping and AI-powered personalized messaging for medical professionals.
+Sistema de prospecção comercial da L3A Digital para o serviço de gestão de Google Meu Negócio (GMN). Encontra empresas, qualifica oportunidades e executa a cadência de contato por WhatsApp com apoio de IA.
 
 ## 📋 Overview
 
-Prospect Hunter automates the process of finding and contacting medical professionals on Instagram through:
+O Prospect Hunter centraliza o funil comercial de ponta a ponta:
 
-- **Automated scraping** of Instagram profiles using Apify
-- **AI-powered messaging** with Google Gemini for personalized outreach
-- **Dashboard** to manage prospects and track engagement
-- **Analytics** to measure response rates and conversion
+- **Prospecção multi-fonte** — busca empresas por nicho e cidade em Google Places, Instagram, LinkedIn, Apify, Serper e Google CSE (com fallback entre as fontes)
+- **GBP Check** — detecta se a empresa tem perfil no Google Meu Negócio e gera auditoria/relatório
+- **Qualificação de leads** — score de fit comercial (0–100) que recomenda o Funil A (empresa COM perfil GMN) ou o Funil B (empresa SEM perfil GMN)
+- **Cadência de WhatsApp (Uazapi)** — sequência SPIN automática com follow-ups e gatilhos de saída (resposta ou silêncio)
+- **Mensagens com IA** — Google Gemini para abordagem personalizada, com geração de relatórios em PDF
+- **CRM / Pipeline** — move os leads por estágios, com analytics de resposta e follow-ups pendentes
 
 ## 🚀 Quick Start
 
@@ -20,8 +22,10 @@ Prospect Hunter automates the process of finding and contacting medical professi
 - Node.js 18 LTS or higher
 - npm or yarn
 - GitHub account
+- Supabase project (URL + anon key)
 - Apify API token (for scraping)
 - Google Gemini API key
+- Uazapi token (para a cadência de WhatsApp)
 
 ### Installation
 
@@ -45,20 +49,23 @@ Prospect Hunter automates the process of finding and contacting medical professi
    # Edit .env.local and fill in your API keys
    ```
 
-4. **Generate NextAuth secret**
+4. **Configure o login local (dev)**
+
+   O Prospect Hunter usa sessão própria via cookie (não usa NextAuth). Para o ambiente
+   de desenvolvimento, defina no `.env.local`:
 
    ```bash
-   openssl rand -base64 32
+   ENABLE_LOCAL_AUTH=true
+   LOCAL_AUTH_EMAIL=voce@exemplo.com
+   LOCAL_AUTH_PASSWORD=uma-senha-forte
    ```
-
-   Copy the output and paste into `NEXTAUTH_SECRET` in `.env.local`
 
 5. **Start development server**
    ```bash
    npm run dev
    ```
 
-Visit `http://localhost:3000` - you should see the Prospect Hunter canary page.
+Visit `http://localhost:3000` - você verá a tela de login do Prospect Hunter.
 
 ## 📦 Available Scripts
 
@@ -127,8 +134,8 @@ prospect-hunter/
 ├── .env.example            # Environment variables template
 ├── package.json            # Dependencies
 ├── tsconfig.json           # TypeScript configuration
-├── next.config.ts          # Next.js configuration
-├── tailwind.config.ts      # Tailwind CSS configuration
+├── next.config.mjs         # Next.js configuration
+├── tailwind.config.mjs     # Tailwind CSS configuration
 └── README.md               # This file
 ```
 
@@ -136,16 +143,23 @@ prospect-hunter/
 
 Create `.env.local` from `.env.example`:
 
-| Variable            | Required | Description                                                      |
-| ------------------- | -------- | ---------------------------------------------------------------- |
-| `SUPABASE_URL`      | Yes      | Supabase project URL                                             |
-| `SUPABASE_ANON_KEY` | Yes      | Supabase public key                                              |
-| `NEXTAUTH_SECRET`   | Yes      | Session encryption key (generate with `openssl rand -base64 32`) |
-| `NEXTAUTH_URL`      | Yes      | Auth callback URL (http://localhost:3000 for dev)                |
-| `APIFY_TOKEN`       | Yes      | Apify API token for scraping                                     |
-| `GEMINI_API_KEY`    | Yes      | Google Gemini API key                                            |
-| `REDIS_URL`         | No       | Redis connection (for job queue)                                 |
-| `SENTRY_DSN`        | No       | Sentry error tracking                                            |
+| Variable              | Required | Description                                                   |
+| --------------------- | -------- | ------------------------------------------------------------- |
+| `SUPABASE_URL`        | Yes      | Supabase project URL                                          |
+| `SUPABASE_ANON_KEY`   | Yes      | Supabase public key                                           |
+| `APIFY_TOKEN`         | Yes      | Apify API token (scraping)                                    |
+| `GEMINI_API_KEY`      | Yes      | Google Gemini API key                                         |
+| `UAZAPI_API_URL`      | Yes      | Endpoint da Uazapi (cadência de WhatsApp)                     |
+| `UAZAPI_API_TOKEN`    | Yes      | Token da Uazapi                                               |
+| `ENABLE_LOCAL_AUTH`   | No       | Ativa login local por email/senha (dev)                       |
+| `LOCAL_AUTH_EMAIL`    | No       | Email do usuário local (quando `ENABLE_LOCAL_AUTH=true`)      |
+| `LOCAL_AUTH_PASSWORD` | No       | Senha do usuário local (quando `ENABLE_LOCAL_AUTH=true`)      |
+| `GOOGLE_MAPS_API_KEY` | No       | Google Places (fonte de prospecção)                           |
+| `SERPER_API_KEY`      | No       | Serper.dev (alternativa de baixo custo ao Apify no Instagram) |
+| `GOOGLE_CSE_API_KEY`  | No       | Google Custom Search (alternativa gratuita ao Apify)          |
+| `SENTRY_DSN`          | No       | Sentry error tracking                                         |
+
+> A lista completa de variáveis (incluindo os IDs de tasks/actors do Apify) está em [`.env.example`](./.env.example).
 
 ## 🧪 Testing
 
