@@ -519,8 +519,18 @@ export function useLeads(userId: string): UseLeadsReturn {
         body: JSON.stringify({ leadId, pdfUrl: pdfUrl.trim() || undefined }),
       });
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        alert(`Erro: ${data.error ?? "Tente novamente."}`);
+        // A API pode responder com JSON de erro OU (num crash 500) com HTML.
+        // Ler como texto e tentar parsear evita quebrar no res.json() e mascarar
+        // o erro real como "Erro de conexão".
+        const body = await res.text();
+        let message = "Tente novamente.";
+        try {
+          const data = JSON.parse(body) as { error?: string };
+          if (data.error) message = data.error;
+        } catch {
+          if (body.trim()) message = `Falha no servidor (HTTP ${res.status}).`;
+        }
+        alert(`Erro: ${message}`);
         return;
       }
       // Atualiza o estado local para refletir a mudança na UI sem precisar recarregar

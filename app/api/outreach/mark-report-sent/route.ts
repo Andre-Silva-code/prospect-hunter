@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
 import { getLeadById, updateLeadRecord } from "@/lib/leads-repository";
-import { getOutreachItemByLeadId } from "@/lib/outreach-queue-helpers";
-import { enqueueOutreach, updateQueueItem } from "@/lib/outreach-queue";
+import { enqueueOutreach, getQueueItemByLeadId, updateQueueItem } from "@/lib/outreach-queue";
 import { checkWhatsAppNumber, sendTextMessage } from "@/lib/connectors/uazapi";
 import { normalizePhoneForWhatsApp } from "@/lib/connectors/utils";
 import { generatePostAnalysisMessage } from "@/lib/outreach-message";
@@ -35,7 +34,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
   }
 
-  let outreachItem = await getOutreachItemByLeadId(sessionUser.id, leadId);
+  let outreachItem = await getQueueItemByLeadId(leadId);
 
   // Lead adicionado manualmente — não tem entrada na fila ainda
   if (!outreachItem) {

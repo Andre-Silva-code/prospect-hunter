@@ -85,21 +85,11 @@ async function findByJidFile(jid: string): Promise<OutreachQueueItem | null> {
   }
 }
 
-/**
- * Busca um item na fila de outreach pelo leadId.
- */
-export async function getOutreachItemByLeadId(
-  userId: string,
-  leadId: string
-): Promise<OutreachQueueItem | null> {
-  try {
-    const raw = await readFile(queueFilePath, "utf8");
-    const items = JSON.parse(raw) as OutreachQueueItem[];
-    return items.find((i) => i.userId === userId && i.leadId === leadId) ?? null;
-  } catch {
-    return null;
-  }
-}
+// NOTA: para buscar um item pelo leadId, use `getQueueItemByLeadId` de
+// `@/lib/outreach-queue`. Aquela função respeita o storage configurado
+// (Supabase em produção ou arquivo local em dev). A versão antiga que existia
+// aqui lia SEMPRE o arquivo local e retornava null em produção — o que quebrava
+// os botões "Já enviei o relatório" e "Enviar relatório" no CRM.
 
 async function findByJidSupabase(jid: string): Promise<OutreachQueueItem | null> {
   const supabaseUrl = getSupabaseUrl();

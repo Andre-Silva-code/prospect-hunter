@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-session";
 import { getLeadById, updateLeadRecord } from "@/lib/leads-repository";
-import { getOutreachItemByLeadId } from "@/lib/outreach-queue-helpers";
 import { captureGbpCheckReport } from "@/lib/pdf/gbpcheck-capture";
 import { sendDocumentMessage } from "@/lib/connectors/uazapi";
-import { updateQueueItem } from "@/lib/outreach-queue";
+import { getQueueItemByLeadId, updateQueueItem } from "@/lib/outreach-queue";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -24,7 +23,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
   }
 
-  const outreachItem = await getOutreachItemByLeadId(sessionUser.id, leadId);
+  const outreachItem = await getQueueItemByLeadId(leadId);
   if (!outreachItem?.whatsappJid) {
     return NextResponse.json(
       { error: "Número WhatsApp não encontrado para este lead" },
