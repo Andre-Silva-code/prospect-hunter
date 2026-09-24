@@ -15,11 +15,15 @@ import type { LeadRecord } from "@/types/prospecting";
 
 export async function POST(request: Request): Promise<NextResponse> {
   const cronSecret = process.env.OUTREACH_CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Falha fechado: sem segredo de cron configurado, o endpoint fica indisponível
+  // em vez de aberto (evita disparos de follow-up por qualquer requisição externa).
+  if (!cronSecret) {
+    logger.error("Follow-up bloqueado — OUTREACH_CRON_SECRET não configurado");
+    return NextResponse.json({ error: "Cron not configured" }, { status: 503 });
+  }
+  const auth = request.headers.get("authorization");
+  if (auth !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

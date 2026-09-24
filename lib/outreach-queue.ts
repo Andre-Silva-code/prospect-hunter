@@ -196,7 +196,14 @@ function createFileStorage(): OutreachStorage {
     getFollowUpDue: async (afterStatus, daysOld) => {
       const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
       const items = await readFileQueue();
-      return items.filter((i) => i.status === afterStatus && i.updatedAt <= cutoff);
+      // Mede a idade pela data de ENVIO (sentAt), não por updatedAt — que é tocado
+      // por retries/resgates e reiniciaria a régua do follow-up. Fallback para
+      // updatedAt quando sentAt for nulo (itens que nunca chegaram a enviar).
+      return items.filter((i) => {
+        if (i.status !== afterStatus) return false;
+        const reference = i.sentAt ?? i.updatedAt;
+        return reference <= cutoff;
+      });
     },
 
     getStuckSending: async (minutesOld) => {
@@ -318,13 +325,21 @@ function createSupabaseStorage(): OutreachStorage {
 
     getFollowUpDue: async (afterStatus, daysOld) => {
       const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
+      // Busca por status (sem filtro de data no banco) e aplica a régua em memória:
+      // a idade é medida por sent_at (data real do envio), com fallback para
+      // updated_at quando sent_at é nulo. Isso evita que retries/resgates — que
+      // tocam updated_at — reiniciem a contagem do follow-up. Alguns status
+      // (ex.: pdf_sent) não têm sent_at, por isso o fallback é necessário.
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/outreach_queue?status=eq.${encodeURIComponent(afterStatus)}&updated_at=lte.${encodeURIComponent(cutoff)}`,
+        `${supabaseUrl}/rest/v1/outreach_queue?status=eq.${encodeURIComponent(afterStatus)}`,
         { headers: baseHeaders, cache: "no-store" }
       );
       const payload = (await response.json()) as unknown[];
       if (!Array.isArray(payload)) return [];
-      return payload.map(normalizeRow).filter((i): i is OutreachQueueItem => i !== null);
+      return payload
+        .map(normalizeRow)
+        .filter((i): i is OutreachQueueItem => i !== null)
+        .filter((i) => (i.sentAt ?? i.updatedAt) <= cutoff);
     },
 
     getStuckSending: async (minutesOld) => {

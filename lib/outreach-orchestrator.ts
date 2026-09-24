@@ -338,7 +338,8 @@ export async function processScheduledOutreach(
       sentAt: new Date().toISOString(),
       messageId: sendResult.messageId,
       pdfGenerated: false,
-      attemptCount: item.attemptCount + 1,
+      // Sucesso não consome uma "tentativa" — preserva o contador de falhas real.
+      attemptCount: item.attemptCount,
       lastError: null,
     });
 

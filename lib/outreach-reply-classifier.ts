@@ -55,6 +55,27 @@ const interestPatterns = [
 ];
 
 /**
+ * Sinais de ADIAMENTO / INDECISÃO — a mensagem tem um "não", mas é um lead morno
+ * ("ainda não decidi", "agora não posso", "hoje não dá"), não uma recusa. Nesses
+ * casos NÃO devemos mover o lead para Perdido — deixamos a sequência continuar.
+ */
+const deferralPatterns = [
+  /\bainda n[aã]o\b/,
+  /\bagora n[aã]o\b/,
+  /\bhoje n[aã]o\b/,
+  /\bno momento n[aã]o\b/,
+  /\bmais tarde\b/,
+  /\bdepois\b/,
+  /\boutra hora\b/,
+  /\boutro dia\b/,
+  /\bn[aã]o (posso|consigo|deu|d[aá]|decidi|sei) (agora|hoje|ainda)\b/,
+  /\bmes que vem\b/,
+  /\bpr[oó]xima semana\b/,
+  /\bme liga\b/,
+  /\bme chama\b/,
+];
+
+/**
  * Padrões de resposta automática de bot/atendente virtual.
  * Quando detectado, ignora silenciosamente — não avança o card,
  * não envia mensagem de qualificação.
@@ -165,6 +186,10 @@ function hasInterestSignal(message: string): boolean {
   return interestPatterns.some((pattern) => pattern.test(message));
 }
 
+function hasDeferralSignal(message: string): boolean {
+  return deferralPatterns.some((pattern) => pattern.test(message));
+}
+
 /**
  * Decide se a resposta é uma recusa.
  *  - Recusa explícita → sempre negativa.
@@ -179,11 +204,38 @@ export function isNegative(message: string): boolean {
     return true;
   }
   if (weakNegativePatterns.some((pattern) => pattern.test(text))) {
-    return !hasInterestSignal(text);
+    // "não" solto só é recusa se NÃO houver sinal de interesse E NÃO for um
+    // adiamento/indecisão (evita queimar leads mornos como "ainda não decidi").
+    return !hasInterestSignal(text) && !hasDeferralSignal(text);
   }
   return false;
 }
 
+/**
+ * Sinais de que o responsável é OUTRA pessoa. Se presentes, um "sim" NÃO deve
+ * confirmar a qualificação (ex.: "sim, mas quem cuida é meu sócio") — senão o
+ * lead avançaria para Diagnóstico com o interlocutor errado.
+ */
+const thirdPartyPatterns = [
+  /\bmeu s[oó]cio\b/,
+  /\bminha s[oó]cia\b/,
+  /\boutra pessoa\b/,
+  /\bquem cuida\b/,
+  /\bresponsável [ée] (o|a|meu|minha|outr)/,
+  /\bfala com\b/,
+  /\bfalar com\b/,
+  /\bn[aã]o sou eu\b/,
+  /\bn[aã]o sou o\b/,
+  /\bn[aã]o sou a\b/,
+  /\bquem (faz|mexe|gerencia|toca)\b/,
+  /\bpasso (o|seu|teu)? ?contato\b/,
+];
+
 export function isQualificationConfirm(message: string): boolean {
-  return qualificationConfirmPatterns.some((pattern) => pattern.test(message));
+  const text = message.toLowerCase();
+  // Se aponta para terceiro, não confirma — precisa de tratamento humano.
+  if (thirdPartyPatterns.some((pattern) => pattern.test(text))) {
+    return false;
+  }
+  return qualificationConfirmPatterns.some((pattern) => pattern.test(text));
 }

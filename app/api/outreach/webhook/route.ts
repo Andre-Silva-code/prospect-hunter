@@ -29,11 +29,15 @@ type UazapiWebhookPayload = {
 
 export async function POST(request: Request): Promise<NextResponse> {
   const webhookSecret = process.env.UAZAPI_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${webhookSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Falha fechado: sem segredo configurado, o endpoint fica indisponível em vez
+  // de aberto (evita que qualquer um simule respostas de leads e mova cards).
+  if (!webhookSecret) {
+    logger.error("Webhook bloqueado — UAZAPI_WEBHOOK_SECRET não configurado");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
+  const auth = request.headers.get("authorization");
+  if (auth !== `Bearer ${webhookSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

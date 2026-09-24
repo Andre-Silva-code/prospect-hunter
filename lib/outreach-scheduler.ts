@@ -17,7 +17,11 @@ import { logger } from "@/lib/logger";
 
 const PROCESS_INTERVAL_MS = 2 * 60 * 1000; // 2 min
 const ENRICH_INTERVAL_MS = 30 * 60 * 1000; // 30 min
-const FOLLOWUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h (o endpoint já filtra o que está devido)
+// 1h: o endpoint já filtra horário comercial e só dispara leads "devidos" (que
+// vencem no máximo 1x/dia), então rodar de hora em hora não gera duplicidade —
+// apenas garante que a janela comercial do dia nunca seja perdida por um tick
+// que caísse fora do horário (o que acontecia com o intervalo antigo de 6h).
+const FOLLOWUP_INTERVAL_MS = 60 * 60 * 1000; // 1h
 
 // Guard de módulo: garante que o agendador só suba uma vez por processo,
 // mesmo que instrumentation seja avaliado mais de uma vez.
